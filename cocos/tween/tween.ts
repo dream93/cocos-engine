@@ -24,13 +24,14 @@
 
 import { TweenSystem } from './tween-system';
 import { warn } from '../core';
-import { ActionInterval, sequence, repeat, repeatForever, reverseTime, delayTime, spawn } from './actions/action-interval';
-import { removeSelf, show, hide, callFunc } from './actions/action-instant';
+import { ActionInterval, sequence, reverseTime, delayTime, spawn, Sequence, Spawn, repeat, repeatForever } from './actions/action-interval';
+import { removeSelf, show, hide, callFunc, TCallFuncCallback } from './actions/action-instant';
 import { Action, FiniteTimeAction } from './actions/action';
 import { ITweenOption } from './export-api';
 import { TweenAction } from './tween-action';
 import { SetAction } from './set-action';
 import { legacyCC } from '../core/global-exports';
+import { Node } from '../scene-graph';
 
 // https://medium.com/dailyjs/typescript-create-a-condition-based-subset-types-9d902cea5b8c
 type FlagExcludedType<Base, Type> = { [Key in keyof Base]: Base[Key] extends Type ? never : Key };
@@ -39,6 +40,9 @@ type KeyPartial<T, K extends keyof T> = { [P in K]?: T[P] };
 type OmitType<Base, Type> = KeyPartial<Base, AllowedNames<Base, Type>>;
 // eslint-disable-next-line @typescript-eslint/ban-types
 type ConstructorType<T> = OmitType<T, Function>;
+type TweenWithNodeTargetOrUnknown<T> = T extends Node ? Tween<T> : unknown;
+
+const notIntervalPrompt = 'the last action is not ActionInterval';
 
 /**
  * @en
@@ -54,9 +58,9 @@ type ConstructorType<T> = OmitType<T, Function>;
  *   .by(1, {scale: new Vec3(-1, -1, -1), position: new Vec3(-5, -5, -5)}, {easing: 'sineOutIn'})
  *   .start()
  */
-export class Tween<T> {
-    private _actions: Action[] = [];
-    private _finalAction: Action | null = null;
+export class Tween<T extends object = any> {
+    private _actions: FiniteTimeAction[] = [];
+    private _finalAction: FiniteTimeAction | null = null;
     private _target: T | null = null;
     private _tag = Action.TAG_INVALID;
 
@@ -77,19 +81,36 @@ export class Tween<T> {
 
     /**
      * @en
-     * Insert an action or tween to this sequence.
+     * Insert a tween to this sequence.
      * @zh
      * 插入一个 tween 到队列中。
      * @method then
      * @param other @en The rear tween of this tween @zh 当前缓动的后置缓动
      */
-    then (other: Tween<T>): Tween<T> {
-        if (other instanceof Action) {
-            this._actions.push(other.clone());
-        } else {
-            this._actions.push(other._union());
-        }
+    then<U extends object = any> (other: Tween<U>): Tween<T> {
+        const u = other._union(true);
+        if (u) this._actions.push(u);
         return this;
+    }
+
+    /**
+     * Insert an action to this sequence.
+     * @param other @en The rear action of this tween @zh 当前缓动的后置缓动
+     */
+    private insertAction (other: FiniteTimeAction): Tween<T> {
+        const action = other.clone();
+        this.updateWorkerTargetForAction(action);
+        this._actions.push(action);
+        return this;
+    }
+
+    private updateWorkerTargetForAction (action: Action | null): void {
+        if (!action) return;
+        if (action instanceof Sequence || action instanceof Spawn) {
+            action.updateWorkerTarget(this._target);
+        } else {
+            action.workerTarget = this._target;
+        }
     }
 
     /**
@@ -100,9 +121,15 @@ export class Tween<T> {
      * @method target
      * @param target @en The target of this tween @zh 当前缓动的目标对象
      */
-    target (target: T): Tween<T | undefined> {
-        this._target = target;
-        return this;
+    target<U extends object = any> (target: U): Tween<U> {
+        (this as unknown as Tween<U>)._target = target;
+
+        for (let i = 0, len = this._actions.length; i < len; ++i) {
+            const action = this._actions[i];
+            this.updateWorkerTargetForAction(action);
+        }
+
+        return this as unknown as Tween<U>;
     }
 
     /**
@@ -119,9 +146,11 @@ export class Tween<T> {
         if (this._finalAction) {
             TweenSystem.instance.ActionManager.removeAction(this._finalAction);
         }
-        this._finalAction = this._union();
-        this._finalAction.setTag(this._tag);
-        TweenSystem.instance.ActionManager.addAction(this._finalAction, this._target as any, false);
+        this._finalAction = this._union(false);
+        if (this._finalAction) {
+            this._finalAction.setTag(this._tag);
+        }
+        TweenSystem.instance.ActionManager.addAction(this._finalAction, this._target, false);
         return this;
     }
 
@@ -134,6 +163,7 @@ export class Tween<T> {
     stop (): Tween<T> {
         if (this._finalAction) {
             TweenSystem.instance.ActionManager.removeAction(this._finalAction);
+            this._finalAction = null;
         }
         return this;
     }
@@ -146,9 +176,10 @@ export class Tween<T> {
      * @method clone
      * @param target @en The target of clone tween @zh 克隆缓动的目标对象
      */
-    clone (target: T): Tween<T> {
-        const action = this._union();
-        return tween(target).then(action.clone() as any);
+    clone<U extends object = any> (target: U): Tween<U> {
+        const action = this._union(false);
+        const r = tween(target);
+        return action ? r.insertAction(action) : r;
     }
 
     /**
@@ -158,9 +189,9 @@ export class Tween<T> {
      * 将之前所有的 action 整合为一个 action。
      */
     union (): Tween<T> {
-        const action = this._union();
+        const action = this._union(false);
         this._actions.length = 0;
-        this._actions.push(action);
+        if (action) this._actions.push(action);
         return this;
     }
 
@@ -176,9 +207,9 @@ export class Tween<T> {
      * @param opts.progress @en Interpolation function @zh 缓动的速度插值函数
      * @param opts.easing @en Tween function or a lambda @zh 缓动的曲线函数或lambda表达式
      */
-    to (duration: number, props: ConstructorType<T>, opts?: ITweenOption): Tween<T> {
-        opts = opts || Object.create(null);
-        (opts as any).relative = false;
+    to (duration: number, props: ConstructorType<T>, opts?: ITweenOption<T>): Tween<T> {
+        opts = opts || (Object.create(null) as ITweenOption<T>);
+        opts.relative = false;
         const action = new TweenAction(duration, props, opts);
         this._actions.push(action);
         return this;
@@ -197,9 +228,9 @@ export class Tween<T> {
      * @param [opts.easing]
      * @return {Tween}
      */
-    by (duration: number, props: ConstructorType<T>, opts?: ITweenOption): Tween<T> {
-        opts = opts || Object.create(null);
-        (opts as any).relative = true;
+    by (duration: number, props: ConstructorType<T>, opts?: ITweenOption<T>): Tween<T> {
+        opts = opts || (Object.create(null) as ITweenOption<T>);
+        opts.relative = true;
         const action = new TweenAction(duration, props, opts);
         this._actions.push(action);
         return this;
@@ -242,11 +273,12 @@ export class Tween<T> {
      * 添加一个回调 action。
      * @method call
      * @param callback @en Callback function at the end of this tween @zh 当前缓动结束时的回调函数
+     * @param callbackThis @en The this object in callback function @zh 回调函数中的 this 对象
+     * @param data @en The Custom data that will be passed to callback @zh 要传递给回调函数的自定义数据
      * @return {Tween}
      */
-    // eslint-disable-next-line @typescript-eslint/ban-types
-    call (callback: Function): Tween<T> {
-        const action = callFunc(callback);
+    call<TCallbackThis, TData> (callback: TCallFuncCallback<T, TData>, callbackThis?: TCallbackThis, data?: TData): Tween<T> {
+        const action = callFunc(callback, callbackThis, data);
         this._actions.push(action);
         return this;
     }
@@ -259,9 +291,9 @@ export class Tween<T> {
      * @method sequence
      * @param args @en All tween that make up the sequence @zh 组成队列的所有缓动
      */
-    sequence (...args: Tween<T>[]): Tween<T> {
-        const action = Tween._wrappedSequence(...args);
-        this._actions.push(action);
+    sequence (...args: Tween<any>[]): Tween<T> {
+        const action = Tween._wrappedSequence(args);
+        if (action) this._actions.push(action);
         return this;
     }
 
@@ -273,9 +305,9 @@ export class Tween<T> {
      * @method parallel
      * @param args @en The tween parallel to this tween @zh 与当前缓动并行的缓动
      */
-    parallel (...args: Tween<T>[]): Tween<T> {
-        const action = Tween._wrappedParallel(...args);
-        this._actions.push(action);
+    parallel (...args: Tween<any>[]): Tween<T> {
+        const action = Tween._wrappedParallel(args);
+        if (action) this._actions.push(action);
         return this;
     }
 
@@ -295,15 +327,15 @@ export class Tween<T> {
         }
 
         const actions = this._actions;
-        let action: any;
+        let action: FiniteTimeAction | undefined | null;
 
         if (embedTween instanceof Tween) {
-            action = embedTween._union();
+            action = embedTween._union(false);
         } else {
             action = actions.pop();
         }
 
-        actions.push(repeat(action, repeatTimes));
+        if (action) actions.push(repeat(action, repeatTimes));
         return this;
     }
 
@@ -318,15 +350,19 @@ export class Tween<T> {
      */
     repeatForever (embedTween?: Tween<T>): Tween<T> {
         const actions = this._actions;
-        let action: any;
+        let action: FiniteTimeAction | undefined | null;
 
         if (embedTween instanceof Tween) {
-            action = embedTween._union();
+            action = embedTween._union(false);
         } else {
             action = actions.pop();
         }
 
-        actions.push(repeatForever(action as ActionInterval));
+        if (action instanceof ActionInterval) {
+            actions.push(repeatForever(action));
+        } else {
+            warn(`repeatForever: ${notIntervalPrompt}`);
+        }
         return this;
     }
 
@@ -341,15 +377,19 @@ export class Tween<T> {
      */
     reverseTime (embedTween?: Tween<T>): Tween<T> {
         const actions = this._actions;
-        let action: any;
+        let action: Action | undefined | null;
 
         if (embedTween instanceof Tween) {
-            action = embedTween._union();
+            action = embedTween._union(false);
         } else {
             action = actions.pop();
         }
 
-        actions.push(reverseTime(action as ActionInterval));
+        if (action instanceof ActionInterval) {
+            actions.push(reverseTime(action));
+        } else {
+            warn(`reverseTime: ${notIntervalPrompt}`);
+        }
         return this;
     }
 
@@ -359,10 +399,13 @@ export class Tween<T> {
      * @zh
      * 添加一个隐藏 action，只适用于 target 是节点类型的。
      */
-    hide (): Tween<T> {
-        const action = hide();
-        this._actions.push(action);
-        return this;
+    hide (): TweenWithNodeTargetOrUnknown<T> {
+        const isNode = this._target instanceof Node;
+        if (isNode) {
+            const action = hide();
+            this._actions.push(action);
+        }
+        return this as unknown as TweenWithNodeTargetOrUnknown<T>;
     }
 
     /**
@@ -371,10 +414,13 @@ export class Tween<T> {
      * @zh
      * 添加一个显示 action，只适用于 target 是节点类型的。
      */
-    show (): Tween<T> {
-        const action = show();
-        this._actions.push(action);
-        return this;
+    show (): TweenWithNodeTargetOrUnknown<T> {
+        const isNode = this._target instanceof Node;
+        if (isNode) {
+            const action = show();
+            this._actions.push(action);
+        }
+        return this as unknown as TweenWithNodeTargetOrUnknown<T>;
     }
 
     /**
@@ -383,10 +429,13 @@ export class Tween<T> {
      * @zh
      * 添加一个移除自己 action，只适用于 target 是节点类型的。
      */
-    removeSelf (): Tween<T> {
-        const action = removeSelf(false);
-        this._actions.push(action);
-        return this;
+    removeSelf (): TweenWithNodeTargetOrUnknown<T> {
+        const isNode = this._target instanceof Node;
+        if (isNode) {
+            const action = removeSelf(false);
+            this._actions.push(action);
+        }
+        return this as unknown as TweenWithNodeTargetOrUnknown<T>;
     }
 
     /**
@@ -395,10 +444,13 @@ export class Tween<T> {
      * @zh
      * 添加一个移除并销毁自己 action，只适用于 target 是节点类型的。
      */
-    destroySelf (): Tween<T> {
-        const action = removeSelf(true);
-        this._actions.push(action);
-        return this;
+    destroySelf (): TweenWithNodeTargetOrUnknown<T> {
+        const isNode = this._target instanceof Node;
+        if (isNode) {
+            const action = removeSelf(true);
+            this._actions.push(action);
+        }
+        return this as unknown as TweenWithNodeTargetOrUnknown<T>;
     }
 
     /**
@@ -416,9 +468,8 @@ export class Tween<T> {
      * @zh
      * 停止所有指定标签的缓动
      */
-    // eslint-disable-next-line @typescript-eslint/ban-types
     static stopAllByTag (tag: number, target?: object): void {
-        TweenSystem.instance.ActionManager.removeAllActionsByTag(tag, target as any);
+        TweenSystem.instance.ActionManager.removeAllActionsByTag(tag, target);
     }
     /**
      * @en
@@ -426,53 +477,46 @@ export class Tween<T> {
      * @zh
      * 停止所有指定对象的缓动
      */
-    // eslint-disable-next-line @typescript-eslint/ban-types
     static stopAllByTarget (target?: object): void {
-        TweenSystem.instance.ActionManager.removeAllActionsFromTarget(target as any);
+        TweenSystem.instance.ActionManager.removeAllActionsFromTarget(target);
     }
 
-    private _union (): Action {
+    private _union (updateWorkerTarget: boolean): FiniteTimeAction | null {
         const actions = this._actions;
-        let action: Action;
+        if (!actions) return null;
+        let action: FiniteTimeAction;
         if (actions.length === 1) {
             action = actions[0];
         } else {
             action = sequence(actions);
         }
 
+        if (updateWorkerTarget) {
+            this.updateWorkerTargetForAction(action);
+        }
         return action;
     }
 
-    private _destroy (): void {
-        this.stop();
-    }
+    private static readonly _tmp_args: FiniteTimeAction[] = [];
 
-    private static readonly _tmp_args: Tween<any>[] | Action[] = [];
-
-    private static _wrappedSequence (...args: Action[] | Tween<any>[]): ActionInterval {
+    private static _tweenToActions<U extends object = any> (args: Tween<U>[]): void {
         const tmp_args = Tween._tmp_args;
         tmp_args.length = 0;
         for (let l = args.length, i = 0; i < l; i++) {
-            const arg = tmp_args[i] = args[i];
-            if (arg instanceof Tween) {
-                tmp_args[i] = arg._union();
-            }
+            const arg = args[i];
+            const action = arg._union(true);
+            if (action) tmp_args.push(action);
         }
-
-        return sequence.apply(sequence, tmp_args as any);
     }
 
-    private static _wrappedParallel (...args: Action[] | Tween<any>[]): FiniteTimeAction {
-        const tmp_args = Tween._tmp_args;
-        tmp_args.length = 0;
-        for (let l = args.length, i = 0; i < l; i++) {
-            const arg = tmp_args[i] = args[i];
-            if (arg instanceof Tween) {
-                tmp_args[i] = arg._union();
-            }
-        }
+    private static _wrappedSequence<U extends object = any> (args: Tween<U>[]): FiniteTimeAction | null {
+        Tween._tweenToActions(args);
+        return sequence(Tween._tmp_args);
+    }
 
-        return spawn.apply(spawn, tmp_args as any);
+    private static _wrappedParallel<U extends object = any> (args: Tween<U>[]): FiniteTimeAction | null {
+        Tween._tweenToActions(args);
+        return spawn(Tween._tmp_args);
     }
 }
 legacyCC.Tween = Tween;
@@ -491,7 +535,7 @@ legacyCC.Tween = Tween;
  *   .by(1, {scale: new Vec3(-1, -1, -1)}, {easing: 'sineOutIn'})
  *   .start()
  */
-export function tween<T> (target?: T): Tween<T> {
+export function tween<T extends object = any> (target?: T): Tween<T> {
     return new Tween<T>(target);
 }
 legacyCC.tween = tween;
@@ -503,7 +547,7 @@ legacyCC.tween = tween;
  * tweenUtil 是一个工具函数，帮助实例化 Tween 实例。
  * @deprecated please use `tween` instead.
  */
-export function tweenUtil<T> (target?: T): Tween<T> {
+export function tweenUtil<T extends object = any> (target?: T): Tween<T> {
     warn('tweenUtil\' is deprecated, please use \'tween\' instead ');
     return new Tween<T>(target);
 }

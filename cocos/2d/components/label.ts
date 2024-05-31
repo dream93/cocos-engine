@@ -619,7 +619,7 @@ export class Label extends UIRenderer {
     get outlineColor (): Color {
         return this._outlineColor;
     }
-    set outlineColor (value) {
+    set outlineColor (value: Readonly<Color>) {
         if (this._outlineColor === value) return;
         this._outlineColor.set(value);
         this.markForUpdateRenderData();
@@ -673,7 +673,7 @@ export class Label extends UIRenderer {
     get shadowColor (): Color {
         return this._shadowColor;
     }
-    set shadowColor (value) {
+    set shadowColor (value: Readonly<Color>) {
         if (this._shadowColor === value) return;
         this._shadowColor.set(value);
         this.markForUpdateRenderData();
@@ -893,26 +893,39 @@ export class Label extends UIRenderer {
         this._applyFontTexture();
     }
 
+    private destroyTtfSpriteFrame (): void {
+        if (!this._ttfSpriteFrame) {
+            return;
+        }
+        this._ttfSpriteFrame._resetDynamicAtlasFrame();
+        const tex = this._ttfSpriteFrame.texture;
+        this._ttfSpriteFrame.destroy();
+        if (tex) {
+            const tex2d = tex as Texture2D;
+            if (tex2d.image) {
+                tex2d.image.destroy();
+            }
+            tex.destroy();
+        }
+        this._ttfSpriteFrame = null;
+    }
+
+    // Override
+    public _onPreDestroy (): void {
+        super._onPreDestroy();
+        if (!this._isOnLoadCalled) {
+            // If _objFlags does not contain IsOnLoadCalled, it is possible to destroy the ttfSpriteFrame.
+            this.destroyTtfSpriteFrame();
+        }
+    }
+
     public onDestroy (): void {
         if (this._assembler && this._assembler.resetAssemblerData) {
             this._assembler.resetAssemblerData(this._assemblerData!);
         }
 
         this._assemblerData = null;
-        if (this._ttfSpriteFrame) {
-            this._ttfSpriteFrame._resetDynamicAtlasFrame();
-            const tex = this._ttfSpriteFrame.texture;
-            this._ttfSpriteFrame.destroy();
-            if (tex) {
-                const tex2d = tex as Texture2D;
-                if (tex2d.image) {
-                    tex2d.image.destroy();
-                }
-                tex.destroy();
-            }
-            this._ttfSpriteFrame = null;
-        }
-
+        this.destroyTtfSpriteFrame();
         // Don't set null for properties which are init in constructor.
         // this._textStyle = null;
         // this._textLayout = null;
