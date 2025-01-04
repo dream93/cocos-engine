@@ -22,7 +22,7 @@
  THE SOFTWARE.
 */
 import { Model } from './model';
-import { Vec3, assertIsTrue } from '../../core';
+import { Vec3, assertIsTrue, v3 } from '../../core';
 import { RenderScene } from '..';
 import { Device, deviceManager } from '../../gfx';
 import { Node } from '../../scene-graph';
@@ -65,11 +65,11 @@ export class LODGroup {
 
     public node: Node = null!;
 
-    protected _device: Device;
+    protected declare _device: Device;
 
     public enabled = true;
 
-    private _localBoundaryCenter: Vec3 = new Vec3(0, 0, 0);
+    private _localBoundaryCenter: Vec3 = v3(0, 0, 0);
 
     /**
      * @en Object Size in local space, may be auto-calculated value from object bounding box or value from user input.

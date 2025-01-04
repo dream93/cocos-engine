@@ -25,7 +25,7 @@ import {
     ccclass, visible, type, displayOrder, readOnly, slide, range, rangeStep,
     editable, serializable, rangeMin, tooltip, formerlySerializedAs, displayName,
 } from 'cc.decorator';
-import { BAIDU } from 'internal:constants';
+
 import { TextureCube } from '../asset/assets/texture-cube';
 import { CCFloat, CCInteger } from '../core/data/utils/attribute';
 import { Color, Quat, Vec3, Vec2, Vec4 } from '../core/math';
@@ -44,7 +44,6 @@ import { Material, MaterialPropertyFull } from '../asset/assets/material';
 import { cclegacy, macro } from '../core';
 import { Scene } from './scene';
 import { NodeEventType } from './node-event';
-import { property } from '../core/data/class-decorator';
 import { PostSettings, ToneMappingType } from '../render-scene/scene/post-settings';
 
 const _up = new Vec3(0, 1, 0);
@@ -863,11 +862,6 @@ export class ShadowsInfo {
         }
     }
     get enabled (): boolean {
-        if (BAIDU) {
-            if (this._type !== ShadowType.Planar) {
-                this._enabled = false;
-            }
-        }
         return this._enabled;
     }
 
@@ -1709,7 +1703,7 @@ export class SceneGlobals {
         this.skin.activate(sceneData.skin);
         this.postSettings.activate(sceneData.postSettings);
         if (this.lightProbeInfo && sceneData.lightProbes) {
-            this.lightProbeInfo.activate(scene, sceneData.lightProbes as LightProbes);
+            this.lightProbeInfo.activate(scene, sceneData.lightProbes);
         }
 
         const root = legacyCC.director.root as Root;

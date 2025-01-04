@@ -22,12 +22,13 @@
  THE SOFTWARE.
 */
 
-import { ALIPAY, BAIDU, BYTEDANCE, COCOSPLAY, HUAWEI, LINKSURE, OPPO, QTT, VIVO, WECHAT, XIAOMI, DEBUG, TEST, TAOBAO, TAOBAO_MINIGAME, WECHAT_MINI_PROGRAM } from 'internal:constants';
+import { ALIPAY, BYTEDANCE, HUAWEI, OPPO, VIVO, MIGU, WECHAT, XIAOMI, DEBUG, TEST, TAOBAO, TAOBAO_MINIGAME, WECHAT_MINI_PROGRAM } from 'internal:constants';
 import { minigame } from 'pal/minigame';
 import { IFeatureMap } from 'pal/system-info';
 import { EventTarget } from '../../../cocos/core/event';
 import { checkPalIntegrity, withImpl } from '../../integrity-check';
 import { BrowserType, NetworkType, OS, Platform, Language, Feature } from '../enum-type';
+import { warn } from '../../../cocos/core/platform/debug';
 
 // NOTE: register minigame platform here
 let currentPlatform: Platform;
@@ -35,8 +36,6 @@ if (WECHAT) {
     currentPlatform = Platform.WECHAT_GAME;
 } else if (WECHAT_MINI_PROGRAM) {
     currentPlatform = Platform.WECHAT_MINI_PROGRAM;
-} else if (BAIDU) {
-    currentPlatform = Platform.BAIDU_MINI_GAME;
 } else if (XIAOMI) {
     currentPlatform = Platform.XIAOMI_QUICK_GAME;
 } else if (ALIPAY) {
@@ -53,12 +52,8 @@ if (WECHAT) {
     currentPlatform = Platform.VIVO_MINI_GAME;
 } else if (HUAWEI) {
     currentPlatform = Platform.HUAWEI_QUICK_GAME;
-} else if (COCOSPLAY) {
-    currentPlatform = Platform.COCOSPLAY;
-} else if (LINKSURE) {
-    currentPlatform = Platform.LINKSURE_MINI_GAME;
-} else if (QTT) {
-    currentPlatform = Platform.QTT_MINI_GAME;
+} else if (MIGU) {
+    currentPlatform = Platform.MIGU_MINI_GAME;
 }
 
 let isVersionGreaterOrEqualTo;
@@ -96,22 +91,22 @@ if (BYTEDANCE) {
     };
 }
 class SystemInfo extends EventTarget {
-    public readonly networkType: NetworkType;
-    public readonly isNative: boolean;
-    public readonly isBrowser: boolean;
-    public readonly isMobile: boolean;
-    public readonly isLittleEndian: boolean;
-    public readonly platform: Platform;
-    public readonly language: Language;
-    public readonly nativeLanguage: string;
-    public readonly os: OS;
-    public readonly osVersion: string;
-    public readonly osMainVersion: number;
-    public readonly browserType: BrowserType;
-    public readonly browserVersion: string;
-    public readonly isXR: boolean;
-    private _featureMap: IFeatureMap;
-    private _initPromise: Promise<void>[];
+    public declare readonly networkType: NetworkType;
+    public declare readonly isNative: boolean;
+    public declare readonly isBrowser: boolean;
+    public declare readonly isMobile: boolean;
+    public declare readonly isLittleEndian: boolean;
+    public declare readonly platform: Platform;
+    public declare readonly language: Language;
+    public declare readonly nativeLanguage: string;
+    public declare readonly os: OS;
+    public declare readonly osVersion: string;
+    public declare readonly osMainVersion: number;
+    public declare readonly browserType: BrowserType;
+    public declare readonly browserVersion: string;
+    public declare readonly isXR: boolean;
+    private declare _featureMap: IFeatureMap;
+    private _initPromise: Promise<void>[] = [];
 
     constructor () {
         super();
@@ -134,15 +129,24 @@ class SystemInfo extends EventTarget {
 
         // init os, osVersion and osMainVersion
         const minigamePlatform = minigameSysInfo.platform.toLocaleLowerCase();
-        if (minigamePlatform === 'android') {
+        switch (minigamePlatform) {
+        case 'android':
             this.os = OS.ANDROID;
-        } else if (minigamePlatform === 'ios') {
+            break;
+        case 'ios':
             this.os = OS.IOS;
-        } else if (minigamePlatform === 'windows') {
+            break;
+        case 'windows':
             this.os = OS.WINDOWS;
-        } else {
+            break;
+        case 'mac':
+            this.os = OS.OSX;
+            break;
+        default:
             this.os = OS.UNKNOWN;
+            break;
         }
+
         let minigameSystem = minigameSysInfo.system.toLowerCase();
         // Adaptation to Android P
         if (minigameSystem === 'android p') {
@@ -154,7 +158,7 @@ class SystemInfo extends EventTarget {
 
         // init isMobile and platform
         this.platform = currentPlatform;
-        this.isMobile = this.os !== OS.WINDOWS;
+        this.isMobile = this.os === OS.ANDROID || this.os === OS.IOS;
 
         // init browserType and browserVersion
         this.browserType = BrowserType.UNKNOWN;
@@ -206,7 +210,6 @@ class SystemInfo extends EventTarget {
             [Feature.WASM]: supportWasm,
         };
 
-        this._initPromise = [];
         this._initPromise.push(this._supportsWebpPromise());
 
         this._registerEvent();
@@ -245,7 +248,8 @@ class SystemInfo extends EventTarget {
                 img.onerror = function onerror (err): void {
                     clearTimeout(timer);
                     if (DEBUG) {
-                        console.warn('Create Webp image failed, message: '.concat(err.toString()));
+                        // eslint-disable-next-line @typescript-eslint/no-base-to-string
+                        warn('Create Webp image failed, message: '.concat(err.toString()));
                     }
                     resolve(false);
                 };
@@ -285,7 +289,7 @@ class SystemInfo extends EventTarget {
     }
     public openURL (url: string): void {
         if (DEBUG) {
-            console.warn('openURL is not supported');
+            warn('openURL is not supported');
         }
     }
     public now (): number {
@@ -297,7 +301,7 @@ class SystemInfo extends EventTarget {
     }
     public restartJSVM (): void {
         if (DEBUG) {
-            console.warn('restartJSVM is not supported.');
+            warn('restartJSVM is not supported.');
         }
     }
 

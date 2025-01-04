@@ -660,16 +660,12 @@ void Object::weakCallback(napi_env env, void* nativeObject, void* finalizeHint /
             }
         }
 
-        // TODO: remove test code before releasing.
-        const char* clsName = seObj->_getClass()->getName();
-        CC_LOG_INFO("weakCallback class name:%s, ptr:%p", clsName, rawPtr);
-
         if (seObj->_finalizeCb != nullptr) {
-            seObj->_finalizeCb(env, nativeObject, finalizeHint);
+            seObj->_finalizeCb(env, finalizeHint, finalizeHint);
         } else {
             assert(seObj->_getClass() != nullptr);
             if (seObj->_getClass()->_getFinalizeFunction() != nullptr) {
-                seObj->_getClass()->_getFinalizeFunction()(env, nativeObject, finalizeHint);
+                seObj->_getClass()->_getFinalizeFunction()(env, finalizeHint, finalizeHint);
             }
         }
         seObj->decRef();

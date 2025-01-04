@@ -200,8 +200,8 @@ export class Pass {
     protected _instancedBuffers: Record<number, InstancedBuffer> = {};
     protected _hash = 0;
     // external references
-    protected _root: Root;
-    protected _device: Device;
+    protected declare _root: Root;
+    protected declare _device: Device;
     protected _rootBufferDirty = false;
 
     constructor (root: Root) {
@@ -631,6 +631,19 @@ export class Pass {
             if (this._phaseID === r.INVALID_ID) {
                 errorID(12108, info.program);
                 return;
+            }
+        } else  {
+            // Here we are in legacy-pipeline
+            // eslint-disable-next-line no-lonely-if
+            if (typeof info.phase === 'number') {
+                this._passID = (info as Pass)._passID;
+            } else if (info.pass && info.pass !== 'default') {
+                // In legacy pipeline, user might select invalid material,
+                // whose pass name is not 'default'.
+                // We should filter these passes.
+                // Here we set _passID to 0, if pass is not 'default'.
+                assertID(this._passID === 0xFFFFFFFF, 12110);
+                this._passID = 0;
             }
         }
         this._phase = getPhaseID('default');

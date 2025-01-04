@@ -26,6 +26,8 @@
 declare namespace spine {
 
     class String {
+        constructor(name: string, own: boolean);
+        constructor(val: spine.String);
         length: number;
         isEmpty: boolean;
         strPtr: number;
@@ -187,7 +189,7 @@ declare namespace spine {
         setFrame(frameIndex: number, time: number, drawOrder: Array<number>): void;
         apply(skeleton: Skeleton, lastTime: number, time: number, firedEvents: Array<Event>, alpha: number, blend: MixBlend, direction: MixDirection): void;
     }
-    class IkConstraintTimeline extends Updatable {
+    class IkConstraintTimeline extends CurveTimeline {
         static readonly ENTRIES: number;
         frames: ArrayLike<number>;
         constructor(frameCount: number);
@@ -1202,20 +1204,21 @@ declare namespace spine {
         setJitterEffect(jitter: spine.VertexEffect);
         setSwirlEffect(swirl: spine.VertexEffect);
         updateRenderData();
-        setListener(id: number, type: number);
+        setListener(id: number);
         setDebugMode(debug: boolean);
         getDebugShapes();
         resizeSlotRegion(slotName: string, width: number, height: number, createNew: boolean);
-        setSlotTexture(slotName: string, index: number);
+        setSlotTexture(slotName: string, uuid: string);
     }
 
     class wasmUtil {
         static spineWasmInit(): void;
         static spineWasmDestroy(): void;
-        static queryStoreMemory(size: number): number;
+        static freeStoreMemory(): void;
+        static createStoreMemory(size: number): number;
         static querySpineSkeletonDataByUUID(uuid: string): SkeletonData;
-        static createSpineSkeletonDataWithJson(jsonStr: string, atlasText: string): SkeletonData;
-        static createSpineSkeletonDataWithBinary(byteSize: number, atlasText: string): SkeletonData;
+        static createSpineSkeletonDataWithJson(jsonStr: string, atlasText: string, textureNames: string[], textureUUIDs: string[]): SkeletonData;
+        static createSpineSkeletonDataWithBinary(byteSize: number, atlasText: string, textureNames: string[], textureUUIDs: string[]): SkeletonData;
         static registerSpineSkeletonDataWithUUID(data: SkeletonData, uuid: string);
         static destroySpineSkeletonDataWithUUID(uuid: string);
         static destroySpineSkeleton(skeleton: Skeleton): void;

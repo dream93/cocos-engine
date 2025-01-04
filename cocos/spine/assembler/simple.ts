@@ -32,8 +32,8 @@ import { BlendFactor } from '../../gfx';
 import { legacyCC } from '../../core/global-exports';
 import { RenderData } from '../../2d/renderer/render-data';
 import { director } from '../../game';
-import spine from '../lib/spine-core.js';
-import { Color, Vec3 } from '../../core';
+import spine from '../lib/spine-core';
+import { Color, EPSILON, Vec3 } from '../../core';
 import { MaterialInstance } from '../../render-scene';
 
 const _slotColor = new Color(0, 0, 255, 255);
@@ -72,7 +72,7 @@ function _getSlotMaterial (blendMode: number, comp: Skeleton): MaterialInstance 
         dst = BlendFactor.ONE_MINUS_SRC_ALPHA;
         break;
     case 3:
-        src = BlendFactor.ONE;
+        src = _premultipliedAlpha ? BlendFactor.ONE :  BlendFactor.SRC_ALPHA;
         dst = BlendFactor.ONE_MINUS_SRC_COLOR;
         break;
     case 0:
@@ -117,7 +117,7 @@ export const simple: IAssembler = {
 
     updateRenderData (comp: Skeleton, batcher: Batcher2D) {
         const skeleton = comp._skeleton;
-        if (skeleton) {
+        if (skeleton && comp.node.active && comp.skeletonData?.isValid) {
             updateComponentRenderData(comp, batcher);
         }
     },
@@ -158,10 +158,10 @@ function realTimeTraverse (comp: Skeleton): void {
     }
 
     const vbuf = rd.chunk.vb;
-    const vPtr = model.vPtr;
-    const iPtr = model.iPtr;
+    const vPtr: number = model.vPtr;
+    const iPtr: number = model.iPtr;
     const ibuf = rd.indices!;
-    const HEAPU8 = spine.wasmUtil.wasm.HEAPU8;
+    const HEAPU8: Uint8Array = spine.wasmUtil.wasm.HEAPU8;
 
     comp._vBuffer?.set(HEAPU8.subarray(vPtr, vPtr + comp._vLength), 0);
     comp._iBuffer?.set(HEAPU8.subarray(iPtr, iPtr + comp._iLength), 0);
@@ -169,14 +169,14 @@ function realTimeTraverse (comp: Skeleton): void {
     for (let i = 0; i < ic; i++) ibuf[i] += chunkOffset;
 
     const data = model.getData();
+    const textures = model.getTextures();
     const count = data.size();
     let indexOffset = 0;
     let indexCount = 0;
-    for (let i = 0; i < count; i += 6) {
+    for (let i = 0; i < count; i += 5) {
         indexCount = data.get(i + 3);
-        const material = _getSlotMaterial(data.get(i + 4), comp);
-        const textureID: number = data.get(i + 5);
-        comp.requestDrawData(material, textureID, indexOffset, indexCount);
+        const material = _getSlotMaterial(data.get(i + 4) as number, comp);
+        comp.requestDrawData(material, textures.get(i / 5), indexOffset, indexCount);
         indexOffset += indexCount;
     }
 
@@ -279,11 +279,12 @@ function cacheTraverse (comp: Skeleton): void {
     vUint8Buf.set(model.vData as TypedArray);
 
     const nodeColor = comp.color;
-    if (Color.toUint32(nodeColor) !== 0xffffffff ||  _premultipliedAlpha) {
+    const opacity = comp.node._uiProps.opacity;
+    if ((1 - opacity) > EPSILON || Color.toUint32(nodeColor) !== 0xffffffff ||  _premultipliedAlpha) {
         _nodeR = nodeColor.r / 255;
         _nodeG = nodeColor.g / 255;
         _nodeB = nodeColor.b / 255;
-        _nodeA = nodeColor.a / 255;
+        _nodeA = opacity;
         for (let i = 0; i < vc; i++) {
             const index = i * _byteStrideTwoColor + 5 * Float32Array.BYTES_PER_ELEMENT;
             const R = vUint8Buf[index];
@@ -320,7 +321,7 @@ function cacheTraverse (comp: Skeleton): void {
         const material = _getSlotMaterial(mesh.blendMode as number, comp);
         const textureID = mesh.textureID;
         indexCount = mesh.iCount;
-        comp.requestDrawData(material, textureID as number, indexOffset, indexCount);
+        comp.requestDrawData(material, textureID, indexOffset, indexCount);
         indexOffset += indexCount;
     }
 

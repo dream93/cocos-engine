@@ -23,7 +23,7 @@
 */
 
 import { ensureWasmModuleReady, instantiateWasm } from 'pal/wasm';
-import { NATIVE_CODE_BUNDLE_MODE } from 'internal:constants';
+import { BUILD, LOAD_BULLET_MANUALLY, NATIVE_CODE_BUNDLE_MODE } from 'internal:constants';
 import { game } from '../../game';
 import { error, log, sys } from '../../core';
 import { NativeCodeBundleMode } from '../../misc/webassembly-support';
@@ -107,6 +107,7 @@ function initWASM (wasmFactory, wasmUrl: string): Promise<void> {
         }).then((instance: any) => {
             log('[bullet]:bullet wasm lib loaded.');
             bt = instance as Bullet.instance;
+            globalThis.Bullet = bt as any;
         }).then(resolve).catch((err: any) => reject(errorMessage(err)));
     });
 }
@@ -154,4 +155,6 @@ export function waitForAmmoInstantiation (): Promise<void> {
     }).catch(errorReport);
 }
 
-game.onPostInfrastructureInitDelegate.add(waitForAmmoInstantiation);
+if (!BUILD || !LOAD_BULLET_MANUALLY) {
+    game.onPostInfrastructureInitDelegate.add(waitForAmmoInstantiation);
+}

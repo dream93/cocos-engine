@@ -40,6 +40,9 @@
                 },
                 "required": {
                     "type": "boolean"
+                },
+                "flags": {
+                    "type": "object"
                 }
             },
             "type": "object"
@@ -55,6 +58,9 @@
                 },
                 "label": {
                     "type": "string"
+                },
+                "required": {
+                    "type": "boolean"
                 }
             },
             "type": "object"
@@ -78,6 +84,12 @@
                     "$ref": "#/definitions/IFeatureItem"
                 },
                 "custom-pipeline": {
+                    "$ref": "#/definitions/IFeatureItem"
+                },
+                "custom-pipeline-post-process": {
+                    "$ref": "#/definitions/IFeatureItem"
+                },
+                "legacy-pipeline": {
                     "$ref": "#/definitions/IFeatureItem"
                 },
                 "debug-renderer": {
@@ -165,6 +177,9 @@
                     "$ref": "#/definitions/IFeatureItem"
                 },
                 "tiled-map": {
+                    "$ref": "#/definitions/IFeatureItem"
+                },
+                "vendor": {
                     "$ref": "#/definitions/IFeatureItem"
                 },
                 "tween": {
@@ -232,6 +247,9 @@
                 },
                 "required": {
                     "type": "boolean"
+                },
+                "flags": {
+                    "type": "object"
                 }
             },
             "type": "object"
@@ -255,6 +273,12 @@
                     "$ref": "#/definitions/BaseItem"
                 },
                 "custom-pipeline": {
+                    "$ref": "#/definitions/BaseItem"
+                },
+                "custom-pipeline-post-process": {
+                    "$ref": "#/definitions/BaseItem"
+                },
+                "legacy-pipeline": {
                     "$ref": "#/definitions/BaseItem"
                 },
                 "debug-renderer": {
@@ -344,6 +368,9 @@
                 "tiled-map": {
                     "$ref": "#/definitions/BaseItem"
                 },
+                "vendor": {
+                    "$ref": "#/definitions/BaseItem"
+                },
                 "tween": {
                     "$ref": "#/definitions/BaseItem"
                 },
@@ -394,4 +421,3 @@
     },
     "type": "object"
 }
-

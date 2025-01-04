@@ -1,7 +1,7 @@
-/****************************************************************************
- Copyright (c) 2021-2023 Xiamen Yaji Software Co., Ltd.
+/*
+ Copyright (c) 2021-2024 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
-****************************************************************************/
+*/
 
 /**
  * ========================= !DO NOT CHANGE THE FOLLOWING SECTION MANUALLY! =========================
@@ -28,22 +28,23 @@
  * ========================= !DO NOT CHANGE THE FOLLOWING SECTION MANUALLY! =========================
  */
 /* eslint-disable max-len */
-import { Material } from '../../asset/assets';
-import { Camera } from '../../render-scene/scene/camera';
-import { DirectionalLight } from '../../render-scene/scene/directional-light';
-import { GeometryRenderer } from '../geometry-renderer';
-import { Buffer, BufferInfo, ClearFlagBit, Color, CommandBuffer, DescriptorSet, DescriptorSetLayout, Device, Format, LoadOp, ResolveMode, SampleCount, Sampler, ShaderStageFlagBit, StoreOp, Swapchain, Texture, TextureInfo, TextureType, Viewport } from '../../gfx';
-import { GlobalDSManager } from '../global-descriptor-set-manager';
-import { Mat4, Quat, Vec2, Vec4 } from '../../core/math';
-import { MacroRecord } from '../../render-scene/core/pass-utils';
-import { PipelineSceneData } from '../pipeline-scene-data';
-import { PointLight } from '../../render-scene/scene/point-light';
-import { RangedDirectionalLight } from '../../render-scene/scene/ranged-directional-light';
-import { AccessType, CopyPair, LightInfo, MovePair, QueueHint, ResolvePair, ResourceDimension, ResourceFlags, ResourceResidency, SceneFlags, UpdateFrequency, UploadPair } from './types';
-import { RenderWindow } from '../../render-scene/core/render-window';
-import { Light, Model } from '../../render-scene/scene';
-import { SphereLight } from '../../render-scene/scene/sphere-light';
-import { SpotLight } from '../../render-scene/scene/spot-light';
+import type { Material } from '../../asset/assets';
+import type { Camera } from '../../render-scene/scene/camera';
+import type { DirectionalLight } from '../../render-scene/scene/directional-light';
+import type { GeometryRenderer } from '../geometry-renderer';
+import type { Buffer, BufferInfo, ClearFlagBit, Color, CommandBuffer, DescriptorSet, DescriptorSetLayout, Device, Format, LoadOp, ResolveMode, SampleCount, Sampler, ShaderStageFlagBit, StoreOp, Swapchain, Texture, TextureInfo, TextureType, Viewport } from '../../gfx';
+import type { GlobalDSManager } from '../global-descriptor-set-manager';
+import type { Mat4, Quat, Vec2, Vec4 } from '../../core/math';
+import type { MacroRecord } from '../../render-scene/core/pass-utils';
+import type { PipelineSceneData } from '../pipeline-scene-data';
+import type { PointLight } from '../../render-scene/scene/point-light';
+import type { RangedDirectionalLight } from '../../render-scene/scene/ranged-directional-light';
+import type { AccessType, CopyPair, LightInfo, MovePair, QueueHint, ResolvePair, ResourceDimension, ResourceFlags, ResourceResidency, SceneFlags, UpdateFrequency, UploadPair } from './types';
+import type { RenderScene } from '../../render-scene/core/render-scene';
+import type { RenderWindow } from '../../render-scene/core/render-window';
+import type { Light, Model } from '../../render-scene/scene';
+import type { SphereLight } from '../../render-scene/scene/sphere-light';
+import type { SpotLight } from '../../render-scene/scene/spot-light';
 
 /**
  * @engineInternal
@@ -216,17 +217,6 @@ export enum PipelineType {
     STANDARD,
 }
 
-export function getPipelineTypeName (e: PipelineType): string {
-    switch (e) {
-    case PipelineType.BASIC:
-        return 'BASIC';
-    case PipelineType.STANDARD:
-        return 'STANDARD';
-    default:
-        return '';
-    }
-}
-
 /**
  * @en Render subpass capabilities.
  * Tile-based GPUs support reading color or depth_stencil attachment in pixel shader.
@@ -370,14 +360,6 @@ export interface Setter extends RenderNode {
      */
     setTexture (name: string, texture: Texture): void;
     /**
-     * @deprecated Method will be removed in 3.9.0
-     */
-    setReadWriteBuffer (name: string, buffer: Buffer): void;
-    /**
-     * @deprecated Method will be removed in 3.9.0
-     */
-    setReadWriteTexture (name: string, texture: Texture): void;
-    /**
      * @en Set sampler descriptor.
      * Type of the sampler should match the one in shader.
      * @zh 设置采样器描述符。类型需要与着色器中的一致。
@@ -393,13 +375,6 @@ export interface Setter extends RenderNode {
      * @param camera @en The camera instance to be set. @zh 当前相机
      */
     setBuiltinCameraConstants (camera: Camera): void;
-    /**
-     * @deprecated Method will be removed in 3.9.0
-     * @en Same as setBuiltinDirectionalLightConstants
-     * @zh 同setBuiltinDirectionalLightConstants
-     * @param light @en The main light. @zh 主光
-     */
-    setBuiltinShadowMapConstants (light: DirectionalLight): void;
     /**
      * @en Set builtin directional light and shadow constants.
      * For list of constants, please check CCShadow in cc-shadow.chunk and CCCamera in cc-global.chunk.
@@ -502,7 +477,7 @@ export interface SceneBuilder extends Setter {
  */
 export interface RenderQueueBuilder extends Setter {
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Render the scene the camera is looking at.
      * @zh 渲染当前相机指向的场景。
      * @param camera @en Required camera @zh 所需相机
@@ -526,7 +501,8 @@ export interface RenderQueueBuilder extends Setter {
     addScene (
         camera: Camera,
         sceneFlags: SceneFlags,
-        light?: Light): SceneBuilder;
+        light?: Light,
+        scene?: RenderScene): SceneBuilder;
     /**
      * @en Render a full-screen quad.
      * @zh 渲染全屏四边形
@@ -644,9 +620,13 @@ export interface BasicRenderPassBuilder extends Setter {
      *
      * @param hint @en Usage hint of the queue @zh 用途的提示
      * @param phaseName @en The name of the phase declared in the effect. Default value is 'default' @zh effect中相位(phase)的名字，缺省为'default'。
+     * @param passName @en The name of the pass declared in the effect. It is used to override the pass name in the parent pass/subpass. @zh effect中通道(pass)的名字，会覆盖(override)父(通道/子通道)中已设置的pass名字。
      * @returns @en render queue builder @zh 渲染队列
      */
-    addQueue (hint?: QueueHint, phaseName?: string): RenderQueueBuilder;
+    addQueue (
+        hint?: QueueHint,
+        phaseName?: string,
+        passName?: string): RenderQueueBuilder;
     /**
      * @en Set rendering viewport.
      * @zh 设置渲染视口
@@ -654,7 +634,7 @@ export interface BasicRenderPassBuilder extends Setter {
      */
     setViewport (viewport: Viewport): void;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      */
     setVersion (name: string, version: number): void;
     /**
@@ -735,12 +715,18 @@ export interface BasicPipeline extends PipelineRuntime {
     containsResource (name: string): boolean;
     /**
      * @en Add or update render window to the pipeline.
-     * @zh 注册或更新渲染窗口(RenderWindow)
+     * If the render window is a swapchain and its default framebuffer contains depth stencil buffer,
+     * user should specify the name of the depth stencil buffer.
+     * If the depth stencil name is specified but the depth stencil buffer does not exist, a managed one will be created.
+     * @zh 注册或更新渲染窗口(RenderWindow)。
+     * 如果渲染窗口是交换链并且默认Framebuffer包含深度模板缓冲。用户需要指定深度模板缓冲的名字。
+     * 如果指定了深度模板缓冲的名字，但深度模板缓冲不存在，会创建一个托管的深度模板缓冲。
      * @param name @en Resource name @zh 资源名字
      * @param format @en Expected format of the render window @zh 期望的渲染窗口格式
      * @param width @en Expected width of the render window @zh 期望的渲染窗口宽度
      * @param height @en Expected height of the render window @zh 期望的渲染窗口高度
      * @param renderWindow @en The render window to add. @zh 需要注册的渲染窗口
+     * @param depthStencilName @en The name of the depth stencil buffer of the default framebuffer. @zh 默认Framebuffer的深度模板缓冲的名字
      * @returns Resource ID
      */
     addRenderWindow (
@@ -748,15 +734,19 @@ export interface BasicPipeline extends PipelineRuntime {
         format: Format,
         width: number,
         height: number,
-        renderWindow: RenderWindow): number;
+        renderWindow: RenderWindow,
+        depthStencilName?: string): number;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update render window information.
      * When render window information is updated, such as resized, user should notify the pipeline.
      * @zh 更新渲染窗口信息。当渲染窗口发生更新时，用户应通知管线。
      * @param renderWindow @en The render window to update. @zh 渲染窗口
      */
-    updateRenderWindow (name: string, renderWindow: RenderWindow): void;
+    updateRenderWindow (
+        name: string,
+        renderWindow: RenderWindow,
+        depthStencilName?: string): void;
     /**
      * @en Add or update 2D render target.
      * @zh 添加或更新2D渲染目标
@@ -790,7 +780,7 @@ export interface BasicPipeline extends PipelineRuntime {
         height: number,
         residency?: ResourceResidency): number;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update render target information.
      * @zh 更新渲染目标的信息
      * @param name @en Resource name @zh 资源名字
@@ -804,7 +794,7 @@ export interface BasicPipeline extends PipelineRuntime {
         height: number,
         format?: Format): void;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update depth stencil information.
      * @zh 更新深度模板缓冲的信息
      * @param name @en Resource name @zh 资源名字
@@ -832,7 +822,7 @@ export interface BasicPipeline extends PipelineRuntime {
         flags: ResourceFlags,
         residency: ResourceResidency): number;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update buffer information.
      * @zh 更新缓冲的信息
      * @param name @en Resource name @zh 资源名字
@@ -853,7 +843,7 @@ export interface BasicPipeline extends PipelineRuntime {
         texture: Texture,
         flags: ResourceFlags): number;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update external texture information.
      * @zh 更新外部的贴图信息
      * @param name @en Resource name @zh 资源名字
@@ -889,7 +879,7 @@ export interface BasicPipeline extends PipelineRuntime {
         flags: ResourceFlags,
         residency: ResourceResidency): number;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update texture information.
      * @zh 更新贴图信息
      * @param name @en Resource name @zh 资源名字
@@ -939,7 +929,7 @@ export interface BasicPipeline extends PipelineRuntime {
         flags: ResourceFlags,
         residency: ResourceResidency): number;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update resource information.
      * @zh 更新资源信息
      * @param name @en Resource name @zh 资源名字
@@ -1009,7 +999,7 @@ export interface BasicPipeline extends PipelineRuntime {
         quality: number,
         passName?: string): BasicMultisampleRenderPassBuilder;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      */
     addResolvePass (resolvePairs: ResolvePair[]): void;
     /**
@@ -1034,6 +1024,7 @@ export interface BasicPipeline extends PipelineRuntime {
      */
     addCopyPass (copyPairs: CopyPair[]): void;
     /**
+     * @deprecated Method will be removed in the future
      * @en Builtin reflection probe pass
      * @zh 添加内置环境光反射通道
      * @param camera @en Capturing camera @zh 用于捕捉的相机
@@ -1160,9 +1151,13 @@ export interface RenderSubpassBuilder extends Setter {
      *
      * @param hint @en Usage hint of the queue @zh 用途的提示
      * @param phaseName @en The name of the phase declared in the effect. Default value is 'default' @zh effect中相位(phase)的名字，缺省为'default'。
+     * @param passName @en The name of the pass declared in the effect. It is used to override the pass name in the parent pass/subpass. @zh effect中通道(pass)的名字，会覆盖(override)父(通道/子通道)中已设置的pass名字。
      * @returns @en render queue builder @zh 渲染队列
      */
-    addQueue (hint?: QueueHint, phaseName?: string): RenderQueueBuilder;
+    addQueue (
+        hint?: QueueHint,
+        phaseName?: string,
+        passName?: string): RenderQueueBuilder;
     /**
      * @en Show statistics on screen
      * @zh 在屏幕上渲染统计数据
@@ -1298,9 +1293,10 @@ export interface ComputeSubpassBuilder extends Setter {
      *
      * @param hint @en Usage hint of the queue @zh 用途的提示
      * @param phaseName @en The name of the phase declared in the effect. Default value is 'default' @zh effect中相位(phase)的名字，缺省为'default'。
+     * @param passName @en The name of the pass declared in the effect. It is used to override the pass name in the parent pass/subpass. @zh effect中通道(pass)的名字，会覆盖(override)父(通道/子通道)中已设置的pass名字。
      * @returns @en compute queue builder @zh 计算队列
      */
-    addQueue (phaseName?: string): ComputeQueueBuilder;
+    addQueue (phaseName?: string, passName?: string): ComputeQueueBuilder;
     /**
      * @experimental
      */
@@ -1476,9 +1472,10 @@ export interface ComputePassBuilder extends Setter {
      *
      * @param hint @en Usage hint of the queue @zh 用途的提示
      * @param phaseName @en The name of the phase declared in the effect. Default value is 'default' @zh effect中相位(phase)的名字，缺省为'default'。
+     * @param passName @en The name of the pass declared in the effect. It is used to override the pass name in the parent pass/subpass. @zh effect中通道(pass)的名字，会覆盖(override)父(通道/子通道)中已设置的pass名字。
      * @returns @en compute queue builder @zh 计算队列
      */
-    addQueue (phaseName?: string): ComputeQueueBuilder;
+    addQueue (phaseName?: string, passName?: string): ComputeQueueBuilder;
     /**
      * @experimental
      */
@@ -1646,19 +1643,6 @@ export interface Pipeline extends BasicPipeline {
     addMovePass (movePairs: MovePair[]): void;
     /**
      * @experimental
-     * @engineInternal
-     */
-    addBuiltinGpuCullingPass (
-        camera: Camera,
-        hzbName?: string,
-        light?: Light): void;
-    /**
-     * @experimental
-     * @engineInternal
-     */
-    addBuiltinHzbGenerationPass (sourceDepthStencilName: string, targetHzbName: string): void;
-    /**
-     * @experimental
      */
     addCustomBuffer (
         name: string,
@@ -1673,6 +1657,30 @@ export interface Pipeline extends BasicPipeline {
         type: string): number;
 }
 
+export interface PipelinePassBuilder {
+    getConfigOrder (): number;
+    getRenderOrder (): number;
+    configCamera? (
+        camera: Readonly<Camera>,
+        pplConfigs: { readonly [name: string]: any },
+        cameraConfigs: { [name: string]: any }): void;
+    windowResize? (
+        ppl: BasicPipeline,
+        pplConfigs: { readonly [name: string]: any },
+        cameraConfigs: { readonly [name: string]: any },
+        window: RenderWindow,
+        camera: Camera,
+        width: number,
+        height: number): void;
+    setup? (
+        ppl: BasicPipeline,
+        pplConfigs: { readonly [name: string]: any },
+        cameraConfigs: { readonly [name: string]: any },
+        camera: Camera,
+        context: { [name: string]: any },
+        prevRenderPass?: BasicRenderPassBuilder): BasicRenderPassBuilder | undefined;
+}
+
 /**
  * @en Pipeline builder.
  * User can implement this interface and setup render graph.
@@ -1682,34 +1690,10 @@ export interface Pipeline extends BasicPipeline {
  * 调用setCustomPipeline注册管线
  */
 export interface PipelineBuilder {
-    editorWindowResize? (
+    windowResize? (
         pipeline: BasicPipeline,
         window: RenderWindow,
-        width: number,
-        height: number): void;
-    editorSceneViewResize? (
-        pipeline: BasicPipeline,
-        window: RenderWindow,
-        width: number,
-        height: number): void;
-    editorGameViewResize? (
-        pipeline: BasicPipeline,
-        window: RenderWindow,
-        width: number,
-        height: number): void;
-    editorPreviewResize? (
-        pipeline: BasicPipeline,
-        window: RenderWindow,
-        width: number,
-        height: number): void;
-    gameWindowResize? (
-        pipeline: BasicPipeline,
-        window: RenderWindow,
-        width: number,
-        height: number): void;
-    customWindowResize? (
-        pipeline: BasicPipeline,
-        window: RenderWindow,
+        camera: Camera,
         width: number,
         height: number): void;
     /**
@@ -1733,57 +1717,4 @@ export interface RenderingModule {
     getPassID (name: string): number;
     getSubpassID (passID: number, name: string): number;
     getPhaseID (subpassOrPassID: number, name: string): number;
-}
-
-export interface HBAO {
-    enabled: boolean; /*false*/
-    radiusScale?: number; /*1*/
-    angleBiasDegree?: number; /*10*/
-    blurSharpness?: number; /*3*/
-    aoSaturation?: number; /*1*/
-    needBlur?: boolean; /*false*/
-}
-
-export interface DepthOfField {
-    enabled: boolean; /*false*/
-    focusDistance?: number; /*0*/
-    focusRange?: number; /*0*/
-    bokehRadius?: number; /*1*/
-}
-
-export interface Bloom {
-    enabled: boolean; /*false*/
-    enableAlphaMask?: boolean; /*false*/
-    useHdrIlluminance?: boolean; /*false*/
-    iterations?: number; /*3*/
-    threshold?: number; /*0.8*/
-    intensity?: number; /*2.3*/
-}
-
-export interface ColorGrading {
-    enabled: boolean; /*false*/
-    contribute?: number; /*0*/
-    /*refcount*/ colorGradingMap?: Texture;
-}
-
-export interface FSR {
-    enabled: boolean; /*false*/
-    sharpness?: number; /*0.8*/
-}
-
-export interface FXAA {
-    enabled: boolean; /*false*/
-}
-
-export interface ForwardPipeline {
-    mobileMaxSpotLightShadowMaps: number; /*4*/
-}
-
-export interface PipelineSettings {
-    readonly forwardPipeline: ForwardPipeline;
-    depthOfField?: DepthOfField;
-    bloom?: Bloom;
-    colorGrading?: ColorGrading;
-    fsr?: FSR;
-    fxaa?: FXAA;
 }

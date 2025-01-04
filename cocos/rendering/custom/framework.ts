@@ -23,10 +23,37 @@
 */
 
 import { BasicPipeline, PipelineBuilder } from './pipeline';
-import { Camera, CameraUsage } from '../../render-scene/scene/camera';
+import { Camera } from '../../render-scene/scene/camera';
 import { RenderWindow } from '../../render-scene/core/render-window';
 import { supportsR32FloatTexture } from '../define';
 import { Format } from '../../gfx/base/define';
+
+export { packRGBE } from '../../core/math/color';
+
+//-----------------------------------------------------------------
+// Editor preview begin
+//-----------------------------------------------------------------
+let editorPipelineSettings: object | null = null;
+let forceResize = false;
+
+export function setEditorPipelineSettings (
+    settings: object | null,
+): void {
+    editorPipelineSettings = settings;
+    forceResize = true;
+}
+
+export function getEditorPipelineSettings (): object | null {
+    return editorPipelineSettings;
+}
+
+//-----------------------------------------------------------------
+// Editor preview end
+//-----------------------------------------------------------------
+
+export function forceResizeAllWindows (): void {
+    forceResize = true;
+}
 
 export function defaultWindowResize (ppl: BasicPipeline, window: RenderWindow, width: number, height: number): void {
     ppl.addRenderWindow(window.colorName, Format.BGRA8, width, height, window);
@@ -39,73 +66,39 @@ export function defaultWindowResize (ppl: BasicPipeline, window: RenderWindow, w
     ppl.addDepthStencil(`ShadowDepth${id}`, Format.DEPTH_STENCIL, shadowSize.x, shadowSize.y);
 }
 
+const _resizedWindows: RenderWindow[] = [];
+
 export function dispatchResizeEvents (cameras: Camera[], builder: PipelineBuilder, ppl: BasicPipeline): void {
-    if (!builder.gameWindowResize) {
+    if (!builder.windowResize) {
         // No game window resize handler defined.
         // Following old prodecure, do nothing
         return;
     }
+
+    // Resize all windows.
+    // Notice: A window might be resized multiple times with different cameras.
+    // User should avoid resource collision between different cameras.
     for (const camera of cameras) {
-        if (!camera.window.isRenderWindowResized()) {
+        if (!camera.window.isRenderWindowResized() && !forceResize) {
             continue;
         }
 
         const width = Math.max(Math.floor(camera.window.width), 1);
         const height = Math.max(Math.floor(camera.window.height), 1);
 
-        switch (camera.cameraUsage) {
-        case CameraUsage.EDITOR:
-            if (builder.editorWindowResize) {
-                builder.editorWindowResize(ppl, camera.window, width, height);
-            } else {
-                defaultWindowResize(ppl, camera.window, width, height);
-            }
-            break;
-        case CameraUsage.GAME_VIEW: {
-            if (builder.editorGameViewResize) {
-                builder.editorGameViewResize(ppl, camera.window, width, height);
-            } else {
-                defaultWindowResize(ppl, camera.window, width, height);
-            }
-            break;
-        }
-        case CameraUsage.SCENE_VIEW: {
-            if (builder.editorSceneViewResize) {
-                builder.editorSceneViewResize(ppl, camera.window, width, height);
-            } else {
-                defaultWindowResize(ppl, camera.window, width, height);
-            }
-            break;
-        }
-        case CameraUsage.PREVIEW: {
-            if (builder.editorPreviewResize) {
-                builder.editorPreviewResize(ppl, camera.window, width, height);
-            } else {
-                defaultWindowResize(ppl, camera.window, width, height);
-            }
-            break;
-        }
-        case CameraUsage.GAME: {
-            if (builder.gameWindowResize) {
-                builder.gameWindowResize(ppl, camera.window, width, height);
-            } else {
-                defaultWindowResize(ppl, camera.window, width, height);
-            }
-            break;
-        }
-        default:
-            if (camera.cameraUsage > CameraUsage.GAME) {
-                if (builder.customWindowResize) {
-                    builder.customWindowResize(ppl, camera.window, width, height);
-                } else {
-                    defaultWindowResize(ppl, camera.window, width, height);
-                }
-            } else if (builder.editorWindowResize) {
-                builder.editorWindowResize(ppl, camera.window, width, height);
-            } else {
-                defaultWindowResize(ppl, camera.window, width, height);
-            }
-        }
-        camera.window.setRenderWindowResizeHandled();
+        builder.windowResize(ppl, camera.window, camera, width, height);
+
+        _resizedWindows.push(camera.window);
     }
+
+    // Reset resize flags
+    for (const window of _resizedWindows) {
+        window.setRenderWindowResizeHandled();
+    }
+
+    // Clear resized windows
+    _resizedWindows.length = 0;
+
+    // For editor preview
+    forceResize = false;
 }

@@ -22,16 +22,16 @@
  THE SOFTWARE.
 */
 import { EDITOR } from 'internal:constants';
-import { Camera, CameraAperture, CameraFOVAxis, CameraISO, CameraProjection, CameraShutter, CameraType, SKYBOX_FLAG, TrackingType } from './camera';
+import { Camera, CameraAperture, CameraFOVAxis, CameraISO, CameraProjection, CameraShutter, CameraType, SkyBoxFlagValue, TrackingType } from './camera';
 import { Node } from '../../scene-graph/node';
-import { Color, Quat, Rect, toRadian, Vec2, Vec3, geometry, cclegacy, Vec4, Size } from '../../core';
+import { Color, Quat, Rect, toRadian, Vec2, Vec3, geometry, cclegacy, Vec4, Size, v3, quat } from '../../core';
 import { CAMERA_DEFAULT_MASK } from '../../rendering/define';
 import { ClearFlagBit, Framebuffer } from '../../gfx';
 import { TextureCube } from '../../asset/assets/texture-cube';
 import { RenderTexture } from '../../asset/assets/render-texture';
 
 export enum ProbeClearFlag {
-    SKYBOX = SKYBOX_FLAG | ClearFlagBit.DEPTH_STENCIL,
+    SKYBOX = SkyBoxFlagValue.VALUE | ClearFlagBit.DEPTH_STENCIL,
     SOLID_COLOR = ClearFlagBit.ALL,
 }
 
@@ -94,24 +94,24 @@ export class ReflectionProbe {
      * @en The position of the camera in world space.
      * @zh 世界空间相机的位置
      */
-    private _cameraWorldPos = new Vec3();
+    private _cameraWorldPos = v3();
 
     /**
      * @en The rotation of the camera in world space.
      * @zh 世界空间相机的旋转
      */
-    private _cameraWorldRotation = new Quat();
+    private _cameraWorldRotation = quat();
 
     /**
      * @en The forward direction vertor of the camera in world space.
      * @zh 世界空间相机朝前的方向向量
      */
-    private _forward = new Vec3();
+    private _forward = v3();
     /**
      * @en The up direction vertor of the camera in world space.
      * @zh 世界空间相机朝上的方向向量
      */
-    private _up = new Vec3();
+    private _up = v3();
 
     /**
      * @en Reflection probe cube pattern preview sphere

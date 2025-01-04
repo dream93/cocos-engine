@@ -71,7 +71,7 @@ function TweenEasingAdapter (easingName: string): string {
 }
 
 /** checker */
-function TweenOptionChecker<T> (opts: ITweenOption<T>): void {
+function TweenOptionChecker<T extends object> (opts: ITweenOption<T>): void {
     const header = ' [Tween:] ';
     const message = ` option is not support in v + ${VERSION}`;
     const _opts = opts as unknown as any;
@@ -92,15 +92,26 @@ function TweenOptionChecker<T> (opts: ITweenOption<T>): void {
     }
 }
 
-export class TweenAction<T> extends ActionInterval {
-    private _opts: ITweenOption<T> | undefined;
-    private _props: any;
-    private _originProps: any;
+export interface IInternalTweenOption<T extends object> extends ITweenOption<T> {
+    /**
+     * @en
+     * Whether to use relative value calculation method during easing process
+     * @zh
+     * 缓动过程中是否采用相对值计算的方法
+     */
+    relative?: boolean;
+}
 
-    constructor (duration: number, props: any, opts?: ITweenOption<T>) {
+export class TweenAction<T extends object> extends ActionInterval {
+    private declare _opts: IInternalTweenOption<T>;
+    private declare _props: any;
+    private declare _originProps: any;
+    private _reversed = false;
+
+    constructor (duration: number, props: any, opts?: IInternalTweenOption<T>) {
         super();
         if (opts == null) {
-            opts = Object.create(null);
+            opts = Object.create(null) as IInternalTweenOption<T>;
         } else {
             /** checker */
             TweenOptionChecker(opts);
@@ -134,26 +145,52 @@ export class TweenAction<T> extends ActionInterval {
             let value = props[name];
             if (typeof value === 'function') {
                 value = value();
+            } else if (value == null) {
+                continue;
             }
-            if (value == null || typeof value === 'string') continue;
             // property may have custom easing or progress function
             let customEasing: any;
-            let progress: any;
-            if (value.value !== undefined && (value.easing || value.progress)) {
-                if (typeof value.easing === 'string') {
-                    customEasing = easing[value.easing];
-                    if (!customEasing) warnID(1031, value.easing as string);
-                } else {
-                    customEasing = value.easing;
+            let customProgress: any;
+            let customValue: any;
+
+            if (value.value !== undefined) {
+                customValue = value.value;
+                if (typeof customValue === 'function') {
+                    customValue = customValue();
                 }
-                progress = value.progress;
-                value = value.value;
+
+                if (value.easing !== undefined) {
+                    if (typeof value.easing === 'string') {
+                        customEasing = easing[value.easing];
+                        if (!customEasing) warnID(1031, value.easing as string);
+                    } else {
+                        customEasing = value.easing;
+                    }
+                }
+
+                if (value.progress !== undefined) {
+                    customProgress = value.progress;
+                }
+            } else {
+                customValue = value;
             }
 
             const prop = Object.create(null);
-            prop.value = value;
+            prop.start = prop.current = prop.end = null;
+            prop.keys = null;
+            prop.value = customValue;
             prop.easing = customEasing;
-            prop.progress = progress;
+            prop.progress = customProgress;
+            prop.convert = value.convert;
+            prop.clone = value.clone;
+            prop.add = value.add;
+            prop.sub = value.sub;
+            prop.legacyProgress = value.legacyProgress ?? true;
+            prop.toFixed = value.toFixed;
+            prop.onStart = value.onStart;
+            prop.onStop = value.onStop;
+            prop.onComplete = value.onComplete;
+            prop.valid = true;
             this._props[name] = prop;
         }
 
@@ -161,9 +198,29 @@ export class TweenAction<T> extends ActionInterval {
         this.initWithDuration(duration);
     }
 
+    get relative (): boolean {
+        return !!this._opts.relative;
+    }
+
     clone (): TweenAction<T> {
         const action = new TweenAction(this._duration, this._originProps, this._opts);
+        action._reversed = this._reversed;
+        action._owner = this._owner;
+        action._id = this._id;
         this._cloneDecoration(action);
+        return action;
+    }
+
+    reverse (): TweenAction<T> {
+        if (!this._opts.relative) {
+            warnID(16382);
+            return new TweenAction<T>(0, {});
+        }
+
+        const action = new TweenAction(this._duration, this._originProps, this._opts);
+        this._cloneDecoration(action);
+        action._reversed = !this._reversed;
+        action._owner = this._owner;
         return action;
     }
 
@@ -172,10 +229,11 @@ export class TweenAction<T> extends ActionInterval {
         if (!isEqual) return;
         super.startWithTarget(target);
 
-        const workerTarget = (this.workerTarget ?? this.target) as T;
+        const workerTarget = this._getWorkerTarget<T>();
         if (!workerTarget) return;
-        const relative = !!this._opts!.relative;
+        const relative = !!this._opts.relative;
         const props = this._props;
+        const reversed = this._reversed;
         for (const property in props) {
             const _t: any = workerTarget[property];
             if (_t === undefined) { continue; }
@@ -185,35 +243,119 @@ export class TweenAction<T> extends ActionInterval {
             if (typeof _t === 'number') {
                 prop.start = _t;
                 prop.current = _t;
-                prop.end = relative ? _t + value : value;
+                prop.end = relative ? (reversed ? _t - value : _t + value) : value;
             } else if (typeof _t === 'object') {
-                if (prop.start == null) {
-                    prop.start = {}; prop.current = {}; prop.end = {};
-                }
+                if (prop.legacyProgress) {
+                    if (prop.start == null) {
+                        const Ctor = _t.constructor;
+                        prop.start = new Ctor();
+                        prop.current = new Ctor();
+                        prop.end = new Ctor();
+                    }
 
-                let propertyKeys: string[];
-                if (value.getModifiableProperties) {
-                    propertyKeys = value.getModifiableProperties();
+                    let propertyKeys: string[];
+                    if (value.getModifiableProperties) {
+                        propertyKeys = value.getModifiableProperties();
+                    } else {
+                        propertyKeys = Object.keys(value as object);
+                    }
+                    prop.keys = propertyKeys;
+
+                    for (let i = 0, len = propertyKeys.length; i < len; ++i) {
+                        const k = propertyKeys[i];
+                        // eslint-disable-next-line no-restricted-globals
+                        if (isNaN(_t[k] as number)) continue;
+
+                        prop.start[k] = _t[k];
+                        prop.current[k] = _t[k];
+                        prop.end[k] = relative ? (reversed ? _t[k] - value[k] : _t[k] + value[k]) : value[k];
+                    }
                 } else {
-                    propertyKeys = Object.keys(value as object);
+                    const clone = prop.clone;
+                    if (!clone) {
+                        warnID(16383, property);
+                        prop.valid = false;
+                        continue;
+                    } else {
+                        const add = prop.add;
+                        const sub = prop.sub;
+                        if (relative) {
+                            if (!add) {
+                                warnID(16384, property);
+                                prop.valid = false;
+                            }
+                            if (reversed && !sub) {
+                                warnID(16385, property);
+                                prop.valid = false;
+                            }
+                            if (!prop.valid) continue;
+                        }
+
+                        prop.start = clone(_t);
+                        prop.current = clone(_t);
+                        prop.end = relative ? (reversed ? sub(_t, value) : add(_t, value)) : clone(value);
+                    }
+                }
+            } else if (typeof _t === 'string') {
+                const convertFn = prop.convert;
+                const convertToNumber = (v: any): number | null => {
+                    if (typeof v === 'number') return v;
+                    let convertedValue = v;
+                    if (convertFn) {
+                        convertedValue = convertFn(v);
+                    }
+
+                    if (typeof convertedValue !== 'number') {
+                        convertedValue = Number(convertedValue);
+                        if (Number.isNaN(convertedValue)) {
+                            warnID(16386, `${v}`);
+                            return null;
+                        }
+                    }
+                    return convertedValue as number;
+                };
+
+                const targetNumValue = convertToNumber(value);
+                const startNumValue = convertToNumber(_t);
+                if (targetNumValue == null || startNumValue == null) {
+                    prop.valid = false;
+                    continue;
                 }
 
-                for (let i = 0, len = propertyKeys.length; i < len; ++i) {
-                    const k = propertyKeys[i];
-                    // eslint-disable-next-line no-restricted-globals
-                    if (isNaN(_t[k] as number)) continue;
+                prop.start = startNumValue;
+                prop.current = _t;
+                prop.end = relative ? (reversed ? startNumValue - targetNumValue : startNumValue + targetNumValue) : targetNumValue;
+            }
 
-                    prop.start[k] = _t[k];
-                    prop.current[k] = _t[k];
-                    prop.end[k] = relative ? _t[k] + value[k] : value[k];
-                }
+            if (prop.onStart) {
+                prop.onStart({
+                    relative,
+                    reversed,
+                    start: prop.start,
+                    end: prop.end,
+                });
             }
         }
-        if (this._opts!.onStart) { this._opts!.onStart(workerTarget); }
+
+        if (this._opts.onStart) { this._opts.onStart(workerTarget); }
+    }
+
+    stop (): void {
+        const props = this._props;
+        for (const name in props) {
+            const prop = props[name];
+            if (!prop.valid) continue;
+
+            if (prop.onStop) {
+                prop.onStop();
+            }
+        }
+
+        super.stop();
     }
 
     update (t: number): void {
-        const workerTarget = (this.workerTarget ?? this.target) as T;
+        const workerTarget = this._getWorkerTarget<T>();
         if (!workerTarget) return;
 
         if (!this._opts) return;
@@ -227,27 +369,42 @@ export class TweenAction<T> extends ActionInterval {
         const progress = opts.progress;
         for (const name in props) {
             const prop = props[name];
+            if (!prop.valid) continue;
+
             const time = prop.easing ? prop.easing(t) : easingTime;
             const interpolation = prop.progress ? prop.progress : progress;
 
             const start = prop.start;
             const end = prop.end;
-            if (typeof start === 'number') {
+            const current = prop.current;
+            if (typeof current === 'number') {
                 prop.current = interpolation(start, end, prop.current, time);
             } else if (typeof start === 'object') {
-                // const value = prop.value;
-                for (const k in start) {
-                    // if (value[k].easing) {
-                    //     time = value[k].easing(t);
-                    // }
-                    // if (value[k].progress) {
-                    //     interpolation = value[k].easing(t);
-                    // }
-                    prop.current[k] = interpolation(start[k], end[k], prop.current[k], time);
+                if (prop.legacyProgress) {
+                    const keys = prop.keys;
+                    for (let i = 0, len = keys.length; i < len; ++i) {
+                        const k = keys[i];
+                        prop.current[k] = interpolation(start[k], end[k], prop.current[k], time);
+                    }
+                } else {
+                    prop.current = interpolation(start, end, prop.current, time);
                 }
+            } else if (typeof current === 'string') {
+                let newCurrent = interpolation(start, end, prop.current, time);
+                if (typeof newCurrent === 'number') {
+                    newCurrent = newCurrent.toFixed((prop.toFixed ?? 0) as number);
+                } else if (typeof newCurrent !== 'string') {
+                    warnID(16387);
+                    continue;
+                }
+                prop.current = newCurrent;
             }
 
             workerTarget[name] = prop.current;
+
+            if (t === 1 && prop.onComplete) {
+                prop.onComplete();
+            }
         }
         if (opts.onUpdate) { opts.onUpdate(workerTarget, t); }
         if (t === 1 && opts.onComplete) { opts.onComplete(workerTarget); }
@@ -255,5 +412,9 @@ export class TweenAction<T> extends ActionInterval {
 
     progress (start: number, end: number, current: number, t: number): number {
         return current = start + (end - start) * t;
+    }
+
+    isUnknownDuration (): boolean {
+        return false;
     }
 }

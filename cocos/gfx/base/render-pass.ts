@@ -22,7 +22,7 @@
  THE SOFTWARE.
 */
 
-import { murmurhash2_32_gc } from '../../core';
+import { murmurhash2_32_gc } from '../../core/algorithm/murmurhash2_gc';
 import {
     GFXObject,
     ObjectType,
@@ -37,14 +37,18 @@ import {
  * @zh GFX 渲染过程。
  */
 export abstract class RenderPass extends GFXObject {
+    /** @mangle */
     protected _colorInfos: ColorAttachment[] = [];
+    /** @mangle */
     protected _depthStencilInfo: DepthStencilAttachment | null = null;
+    /** @mangle */
     protected _subpasses: SubpassInfo[] = [];
+    /** @mangle */
     protected _hash = 0;
 
-    get colorAttachments () : Readonly<ColorAttachment[]> { return this._colorInfos; }
-    get depthStencilAttachment () : Readonly<DepthStencilAttachment> | null { return this._depthStencilInfo; }
-    get subPasses () : Readonly<SubpassInfo[]> { return this._subpasses; }
+    get colorAttachments (): Readonly<ColorAttachment[]> { return this._colorInfos; }
+    get depthStencilAttachment (): Readonly<DepthStencilAttachment> | null { return this._depthStencilInfo; }
+    get subPasses (): Readonly<SubpassInfo[]> { return this._subpasses; }
     get hash (): number { return this._hash; }
 
     constructor () {

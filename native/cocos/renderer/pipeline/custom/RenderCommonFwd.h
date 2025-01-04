@@ -1,7 +1,7 @@
-/****************************************************************************
- Copyright (c) 2021-2023 Xiamen Yaji Software Co., Ltd.
+/*
+ Copyright (c) 2021-2024 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -20,17 +20,16 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
-****************************************************************************/
+*/
 
 /**
  * ========================= !DO NOT CHANGE THE FOLLOWING SECTION MANUALLY! =========================
  * The following section is auto-generated.
  * ========================= !DO NOT CHANGE THE FOLLOWING SECTION MANUALLY! =========================
  */
-// clang-format off
 #pragma once
+// clang-format off
 #include "cocos/base/std/hash/hash.h"
-#include "cocos/base/std/variant.h"
 
 namespace cc {
 
@@ -51,6 +50,7 @@ struct RaytraceTag;
 enum class ResourceResidency;
 enum class QueueHint;
 enum class ResourceDimension;
+enum class ViewDimension;
 enum class ResourceFlags : uint32_t;
 
 struct BufferTag;
@@ -64,13 +64,6 @@ enum class AccessType;
 enum class ClearValueType;
 
 struct LightInfo;
-
-enum class DescriptorTypeOrder;
-
-struct Descriptor;
-struct DescriptorBlock;
-struct DescriptorBlockFlattened;
-struct DescriptorBlockIndex;
 
 enum class ResolveFlags : uint32_t;
 

@@ -51,6 +51,7 @@ import { TransformBit } from '../scene-graph/node-enum';
 import { Camera } from '../render-scene/scene';
 import { ParticleCuller } from './particle-culler';
 import { NoiseModule } from './animator/noise-module';
+import { director, DirectorEvent } from '../game/director';
 
 const _world_mat = new Mat4();
 const _world_rol = new Quat();
@@ -84,7 +85,7 @@ export class ParticleSystem extends ModelRenderer {
         return this._capacity;
     }
 
-    public set capacity (val) {
+    public set capacity (val: number) {
         this._capacity = Math.floor(val > 0 ? val : 0);
         if (this.processor && this.processor.model) {
             this.processor.model.setCapacity(this._capacity);
@@ -884,9 +885,9 @@ export class ParticleSystem extends ModelRenderer {
      */
     public _collectModels (): scene.Model[] {
         this._models.length = 0;
-        this._models.push((this.processor as any)._model);
-        if (this._trailModule && this._trailModule.enable && (this._trailModule as any)._trailModel) {
-            this._models.push((this._trailModule as any)._trailModel);
+        this._models.push(this.processor.model!);
+        if (this._trailModule && this._trailModule.enable && this._trailModule.getModel()) {
+            this._models.push(this._trailModule.getModel()!);
         }
         return this._models;
     }
@@ -1064,14 +1065,14 @@ export class ParticleSystem extends ModelRenderer {
     /**
      * @ignore
      */
-    public setCustomData1 (x, y): void {
+    public setCustomData1 (x: number, y: number): void {
         Vec2.set(this._customData1, x, y);
     }
 
     /**
      * @ignore
      */
-    public setCustomData2 (x, y): void {
+    public setCustomData2 (x: number, y: number): void {
         Vec2.set(this._customData2, x, y);
     }
 
@@ -1083,7 +1084,7 @@ export class ParticleSystem extends ModelRenderer {
                 this._trailModule._detachFromScene();
             }
         }
-        cclegacy.director.off(cclegacy.Director.EVENT_BEFORE_COMMIT, this.beforeRender, this);
+        director.off(DirectorEvent.BEFORE_COMMIT, this.beforeRender, this);
         // this._system.remove(this);
         this.processor.onDestroy();
         if (this._trailModule) this._trailModule.destroy();
@@ -1096,7 +1097,7 @@ export class ParticleSystem extends ModelRenderer {
 
     protected onEnable (): void {
         super.onEnable();
-        cclegacy.director.on(cclegacy.Director.EVENT_BEFORE_COMMIT, this.beforeRender, this);
+        director.on(DirectorEvent.BEFORE_COMMIT, this.beforeRender, this);
         if (this.playOnAwake && !EDITOR_NOT_IN_PREVIEW) {
             this.play();
         }
@@ -1104,7 +1105,7 @@ export class ParticleSystem extends ModelRenderer {
         if (this._trailModule) this._trailModule.onEnable();
     }
     protected onDisable (): void {
-        cclegacy.director.off(cclegacy.Director.EVENT_BEFORE_COMMIT, this.beforeRender, this);
+        director.off(DirectorEvent.BEFORE_COMMIT, this.beforeRender, this);
         this.processor.onDisable();
         if (this._trailModule) this._trailModule.onDisable();
         if (this._boundingBox) {
@@ -1375,9 +1376,12 @@ export class ParticleSystem extends ModelRenderer {
 
             // apply startSize.
             if (this.startSize3D) {
-                Vec3.set(particle.startSize, this.startSizeX.evaluate(loopDelta, rand)!,
+                Vec3.set(
+                    particle.startSize,
+                    this.startSizeX.evaluate(loopDelta, rand)!,
                     this.startSizeY.evaluate(loopDelta, rand)!,
-                    this.startSizeZ.evaluate(loopDelta, rand)!);
+                    this.startSizeZ.evaluate(loopDelta, rand)!,
+                );
             } else {
                 Vec3.set(particle.startSize, this.startSizeX.evaluate(loopDelta, rand)!, 1, 1);
                 particle.startSize.y = particle.startSize.x;
@@ -1468,16 +1472,19 @@ export class ParticleSystem extends ModelRenderer {
         this._subEmitters.push(subEmitter);
     }
 
-    private removeSubEmitter (idx): void {
+    private removeSubEmitter (idx: number): void {
         this._subEmitters.splice(this._subEmitters.indexOf(idx), 1);
     }
 
-    private addBurst (burst): void {
+    private addBurst (burst: Burst): void {
         this.bursts.push(burst);
     }
 
-    private removeBurst (idx): void {
-        this.bursts.splice(this.bursts.indexOf(idx), 1);
+    private removeBurst (burst: Burst): void {
+        const i = this.bursts.indexOf(burst);
+        if (i > -1) {
+            this.bursts.splice(i, 1);
+        }
     }
 
     private getBoundingX (): number {
@@ -1560,7 +1567,7 @@ export class ParticleSystem extends ModelRenderer {
      */
     public _onBeforeSerialize (props): any {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-return
-        return this.dataCulling ? props.filter((p): any => !PARTICLE_MODULE_PROPERTY.includes(p) || (this[p] && this[p].enable)) : props;
+        return this.dataCulling ? props.filter((p: string): any => !PARTICLE_MODULE_PROPERTY.includes(p) || (this[p] && this[p].enable)) : props;
     }
 
     /**

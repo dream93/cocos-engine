@@ -1,7 +1,7 @@
-/****************************************************************************
- Copyright (c) 2021-2023 Xiamen Yaji Software Co., Ltd.
+/*
+ Copyright (c) 2021-2024 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
-****************************************************************************/
+*/
 
 /**
  * ========================= !DO NOT CHANGE THE FOLLOWING SECTION MANUALLY! =========================
@@ -29,7 +29,6 @@
  */
 // clang-format off
 #pragma once
-#include "cocos/base/Ptr.h"
 #include "cocos/core/ArrayBuffer.h"
 #include "cocos/core/assets/EffectAsset.h"
 #include "cocos/renderer/core/PassUtils.h"
@@ -450,14 +449,6 @@ public:
      */
     virtual void setTexture(const ccstd::string &name, gfx::Texture *texture) = 0;
     /**
-     * @deprecated Method will be removed in 3.9.0
-     */
-    virtual void setReadWriteBuffer(const ccstd::string &name, gfx::Buffer *buffer) = 0;
-    /**
-     * @deprecated Method will be removed in 3.9.0
-     */
-    virtual void setReadWriteTexture(const ccstd::string &name, gfx::Texture *texture) = 0;
-    /**
      * @en Set sampler descriptor.
      * Type of the sampler should match the one in shader.
      * @zh 设置采样器描述符。类型需要与着色器中的一致。
@@ -473,13 +464,6 @@ public:
      * @param camera @en The camera instance to be set. @zh 当前相机
      */
     virtual void setBuiltinCameraConstants(const scene::Camera *camera) = 0;
-    /**
-     * @deprecated Method will be removed in 3.9.0
-     * @en Same as setBuiltinDirectionalLightConstants
-     * @zh 同setBuiltinDirectionalLightConstants
-     * @param light @en The main light. @zh 主光
-     */
-    virtual void setBuiltinShadowMapConstants(const scene::DirectionalLight *light) = 0;
     /**
      * @en Set builtin directional light and shadow constants.
      * For list of constants, please check CCShadow in cc-shadow.chunk and CCCamera in cc-global.chunk.
@@ -591,7 +575,7 @@ public:
     RenderQueueBuilder() noexcept = default;
 
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Render the scene the camera is looking at.
      * @zh 渲染当前相机指向的场景。
      * @param camera @en Required camera @zh 所需相机
@@ -609,7 +593,7 @@ public:
      * @param sceneFlags @en Rendering flags of the scene @zh 场景渲染标志位
      * @param light @en Light used for lighting computation @zh 用于光照的光源
      */
-    virtual SceneBuilder *addScene(const scene::Camera *camera, SceneFlags sceneFlags, scene::Light *light) = 0;
+    virtual SceneBuilder *addScene(const scene::Camera *camera, SceneFlags sceneFlags, scene::Light *light, scene::RenderScene *scene) = 0;
     /**
      * @en Render a full-screen quad.
      * @zh 渲染全屏四边形
@@ -648,7 +632,10 @@ public:
         addSceneOfCamera(camera, std::move(light), SceneFlags::NONE);
     }
     SceneBuilder *addScene(const scene::Camera *camera, SceneFlags sceneFlags) {
-        return addScene(camera, sceneFlags, nullptr);
+        return addScene(camera, sceneFlags, nullptr, nullptr);
+    }
+    SceneBuilder *addScene(const scene::Camera *camera, SceneFlags sceneFlags, scene::Light *light) {
+        return addScene(camera, sceneFlags, light, nullptr);
     }
     void addFullscreenQuad(Material *material, uint32_t passID) {
         addFullscreenQuad(material, passID, SceneFlags::NONE);
@@ -724,9 +711,10 @@ public:
      *
      * @param hint @en Usage hint of the queue @zh 用途的提示
      * @param phaseName @en The name of the phase declared in the effect. Default value is 'default' @zh effect中相位(phase)的名字，缺省为'default'。
+     * @param passName @en The name of the pass declared in the effect. It is used to override the pass name in the parent pass/subpass. @zh effect中通道(pass)的名字，会覆盖(override)父(通道/子通道)中已设置的pass名字。
      * @returns @en render queue builder @zh 渲染队列
      */
-    virtual RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName) = 0;
+    virtual RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName, const ccstd::string &passName) = 0;
     /**
      * @en Set rendering viewport.
      * @zh 设置渲染视口
@@ -734,7 +722,7 @@ public:
      */
     virtual void setViewport(const gfx::Viewport &viewport) = 0;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      */
     virtual void setVersion(const ccstd::string &name, uint64_t version) = 0;
     /**
@@ -774,10 +762,13 @@ public:
         addTexture(name, slotName, sampler, 0);
     }
     RenderQueueBuilder *addQueue() {
-        return addQueue(QueueHint::NONE, "default");
+        return addQueue(QueueHint::NONE, "default", "");
     }
     RenderQueueBuilder *addQueue(QueueHint hint) {
-        return addQueue(hint, "default");
+        return addQueue(hint, "default", "");
+    }
+    RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName) {
+        return addQueue(hint, phaseName, "");
     }
 };
 
@@ -861,23 +852,29 @@ public:
     virtual bool containsResource(const ccstd::string &name) const = 0;
     /**
      * @en Add or update render window to the pipeline.
-     * @zh 注册或更新渲染窗口(RenderWindow)
+     * If the render window is a swapchain and its default framebuffer contains depth stencil buffer,
+     * user should specify the name of the depth stencil buffer.
+     * If the depth stencil name is specified but the depth stencil buffer does not exist, a managed one will be created.
+     * @zh 注册或更新渲染窗口(RenderWindow)。
+     * 如果渲染窗口是交换链并且默认Framebuffer包含深度模板缓冲。用户需要指定深度模板缓冲的名字。
+     * 如果指定了深度模板缓冲的名字，但深度模板缓冲不存在，会创建一个托管的深度模板缓冲。
      * @param name @en Resource name @zh 资源名字
      * @param format @en Expected format of the render window @zh 期望的渲染窗口格式
      * @param width @en Expected width of the render window @zh 期望的渲染窗口宽度
      * @param height @en Expected height of the render window @zh 期望的渲染窗口高度
      * @param renderWindow @en The render window to add. @zh 需要注册的渲染窗口
+     * @param depthStencilName @en The name of the depth stencil buffer of the default framebuffer. @zh 默认Framebuffer的深度模板缓冲的名字
      * @returns Resource ID
      */
-    virtual uint32_t addRenderWindow(const ccstd::string &name, gfx::Format format, uint32_t width, uint32_t height, scene::RenderWindow *renderWindow) = 0;
+    virtual uint32_t addRenderWindow(const ccstd::string &name, gfx::Format format, uint32_t width, uint32_t height, scene::RenderWindow *renderWindow, const ccstd::string &depthStencilName) = 0;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update render window information.
      * When render window information is updated, such as resized, user should notify the pipeline.
      * @zh 更新渲染窗口信息。当渲染窗口发生更新时，用户应通知管线。
      * @param renderWindow @en The render window to update. @zh 渲染窗口
      */
-    virtual void updateRenderWindow(const ccstd::string &name, scene::RenderWindow *renderWindow) = 0;
+    virtual void updateRenderWindow(const ccstd::string &name, scene::RenderWindow *renderWindow, const ccstd::string &depthStencilName) = 0;
     /**
      * @en Add or update 2D render target.
      * @zh 添加或更新2D渲染目标
@@ -901,7 +898,7 @@ public:
      */
     virtual uint32_t addDepthStencil(const ccstd::string &name, gfx::Format format, uint32_t width, uint32_t height, ResourceResidency residency) = 0;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update render target information.
      * @zh 更新渲染目标的信息
      * @param name @en Resource name @zh 资源名字
@@ -911,7 +908,7 @@ public:
      */
     virtual void updateRenderTarget(const ccstd::string &name, uint32_t width, uint32_t height, gfx::Format format) = 0;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update depth stencil information.
      * @zh 更新深度模板缓冲的信息
      * @param name @en Resource name @zh 资源名字
@@ -931,7 +928,7 @@ public:
      */
     virtual uint32_t addBuffer(const ccstd::string &name, uint32_t size, ResourceFlags flags, ResourceResidency residency) = 0;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update buffer information.
      * @zh 更新缓冲的信息
      * @param name @en Resource name @zh 资源名字
@@ -949,7 +946,7 @@ public:
      */
     virtual uint32_t addExternalTexture(const ccstd::string &name, gfx::Texture *texture, ResourceFlags flags) = 0;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update external texture information.
      * @zh 更新外部的贴图信息
      * @param name @en Resource name @zh 资源名字
@@ -974,7 +971,7 @@ public:
      */
     virtual uint32_t addTexture(const ccstd::string &name, gfx::TextureType type, gfx::Format format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arraySize, uint32_t mipLevels, gfx::SampleCount sampleCount, ResourceFlags flags, ResourceResidency residency) = 0;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update texture information.
      * @zh 更新贴图信息
      * @param name @en Resource name @zh 资源名字
@@ -1005,7 +1002,7 @@ public:
      */
     virtual uint32_t addResource(const ccstd::string &name, ResourceDimension dimension, gfx::Format format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arraySize, uint32_t mipLevels, gfx::SampleCount sampleCount, ResourceFlags flags, ResourceResidency residency) = 0;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      * @en Update resource information.
      * @zh 更新资源信息
      * @param name @en Resource name @zh 资源名字
@@ -1059,7 +1056,7 @@ public:
      */
     virtual BasicMultisampleRenderPassBuilder *addMultisampleRenderPass(uint32_t width, uint32_t height, uint32_t count, uint32_t quality, const ccstd::string &passName) = 0;
     /**
-     * @deprecated Method will be removed in 3.9.0
+     * @deprecated Method will be removed in the future
      */
     virtual void addResolvePass(const ccstd::vector<ResolvePair> &resolvePairs) = 0;
     /**
@@ -1084,6 +1081,7 @@ public:
      */
     virtual void addCopyPass(const ccstd::vector<CopyPair> &copyPairs) = 0;
     /**
+     * @deprecated Method will be removed in the future
      * @en Builtin reflection probe pass
      * @zh 添加内置环境光反射通道
      * @param camera @en Capturing camera @zh 用于捕捉的相机
@@ -1093,6 +1091,12 @@ public:
      * @engineInternal
      */
     virtual gfx::DescriptorSetLayout *getDescriptorSetLayout(const ccstd::string &shaderName, UpdateFrequency freq) = 0;
+    uint32_t addRenderWindow(const ccstd::string &name, gfx::Format format, uint32_t width, uint32_t height, scene::RenderWindow *renderWindow) {
+        return addRenderWindow(name, format, width, height, renderWindow, "");
+    }
+    void updateRenderWindow(const ccstd::string &name, scene::RenderWindow *renderWindow) {
+        updateRenderWindow(name, renderWindow, "");
+    }
     uint32_t addRenderTarget(const ccstd::string &name, gfx::Format format, uint32_t width, uint32_t height) {
         return addRenderTarget(name, format, width, height, ResourceResidency::MANAGED);
     }
@@ -1206,9 +1210,10 @@ public:
      *
      * @param hint @en Usage hint of the queue @zh 用途的提示
      * @param phaseName @en The name of the phase declared in the effect. Default value is 'default' @zh effect中相位(phase)的名字，缺省为'default'。
+     * @param passName @en The name of the pass declared in the effect. It is used to override the pass name in the parent pass/subpass. @zh effect中通道(pass)的名字，会覆盖(override)父(通道/子通道)中已设置的pass名字。
      * @returns @en render queue builder @zh 渲染队列
      */
-    virtual RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName) = 0;
+    virtual RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName, const ccstd::string &passName) = 0;
     /**
      * @en Show statistics on screen
      * @zh 在屏幕上渲染统计数据
@@ -1259,10 +1264,13 @@ public:
         addTexture(name, slotName, sampler, 0);
     }
     RenderQueueBuilder *addQueue() {
-        return addQueue(QueueHint::NONE, "default");
+        return addQueue(QueueHint::NONE, "default", "");
     }
     RenderQueueBuilder *addQueue(QueueHint hint) {
-        return addQueue(hint, "default");
+        return addQueue(hint, "default", "");
+    }
+    RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName) {
+        return addQueue(hint, phaseName, "");
     }
 };
 
@@ -1392,9 +1400,10 @@ public:
      *
      * @param hint @en Usage hint of the queue @zh 用途的提示
      * @param phaseName @en The name of the phase declared in the effect. Default value is 'default' @zh effect中相位(phase)的名字，缺省为'default'。
+     * @param passName @en The name of the pass declared in the effect. It is used to override the pass name in the parent pass/subpass. @zh effect中通道(pass)的名字，会覆盖(override)父(通道/子通道)中已设置的pass名字。
      * @returns @en compute queue builder @zh 计算队列
      */
-    virtual ComputeQueueBuilder *addQueue(const ccstd::string &phaseName) = 0;
+    virtual ComputeQueueBuilder *addQueue(const ccstd::string &phaseName, const ccstd::string &passName) = 0;
     /**
      * @experimental
      */
@@ -1406,7 +1415,10 @@ public:
         addTexture(name, slotName, sampler, 0);
     }
     ComputeQueueBuilder *addQueue() {
-        return addQueue("default");
+        return addQueue("default", "");
+    }
+    ComputeQueueBuilder *addQueue(const ccstd::string &phaseName) {
+        return addQueue(phaseName, "");
     }
 };
 
@@ -1569,9 +1581,10 @@ public:
      *
      * @param hint @en Usage hint of the queue @zh 用途的提示
      * @param phaseName @en The name of the phase declared in the effect. Default value is 'default' @zh effect中相位(phase)的名字，缺省为'default'。
+     * @param passName @en The name of the pass declared in the effect. It is used to override the pass name in the parent pass/subpass. @zh effect中通道(pass)的名字，会覆盖(override)父(通道/子通道)中已设置的pass名字。
      * @returns @en compute queue builder @zh 计算队列
      */
-    virtual ComputeQueueBuilder *addQueue(const ccstd::string &phaseName) = 0;
+    virtual ComputeQueueBuilder *addQueue(const ccstd::string &phaseName, const ccstd::string &passName) = 0;
     /**
      * @experimental
      */
@@ -1586,7 +1599,10 @@ public:
         addMaterialTexture(resourceName, gfx::ShaderStageFlagBit::COMPUTE);
     }
     ComputeQueueBuilder *addQueue() {
-        return addQueue("default");
+        return addQueue("default", "");
+    }
+    ComputeQueueBuilder *addQueue(const ccstd::string &phaseName) {
+        return addQueue(phaseName, "");
     }
 };
 
@@ -1705,16 +1721,6 @@ public:
     virtual void addMovePass(const ccstd::vector<MovePair> &movePairs) = 0;
     /**
      * @experimental
-     * @engineInternal
-     */
-    virtual void addBuiltinGpuCullingPass(const scene::Camera *camera, const std::string &hzbName, const scene::Light *light) = 0;
-    /**
-     * @experimental
-     * @engineInternal
-     */
-    virtual void addBuiltinHzbGenerationPass(const std::string &sourceDepthStencilName, const std::string &targetHzbName) = 0;
-    /**
-     * @experimental
      */
     virtual uint32_t addCustomBuffer(const ccstd::string &name, const gfx::BufferInfo &info, const std::string &type) = 0;
     /**
@@ -1736,12 +1742,19 @@ public:
     void updateStorageTexture(const ccstd::string &name, uint32_t width, uint32_t height) {
         updateStorageTexture(name, width, height, gfx::Format::UNKNOWN);
     }
-    void addBuiltinGpuCullingPass(const scene::Camera *camera) {
-        addBuiltinGpuCullingPass(camera, "", nullptr);
-    }
-    void addBuiltinGpuCullingPass(const scene::Camera *camera, const std::string &hzbName) {
-        addBuiltinGpuCullingPass(camera, hzbName, nullptr);
-    }
+};
+
+class PipelinePassBuilder {
+public:
+    PipelinePassBuilder() noexcept = default;
+    PipelinePassBuilder(PipelinePassBuilder&& rhs) = delete;
+    PipelinePassBuilder(PipelinePassBuilder const& rhs) = delete;
+    PipelinePassBuilder& operator=(PipelinePassBuilder&& rhs) = delete;
+    PipelinePassBuilder& operator=(PipelinePassBuilder const& rhs) = delete;
+    virtual ~PipelinePassBuilder() noexcept = default;
+
+    virtual uint32_t getConfigOrder() const = 0;
+    virtual uint32_t getRenderOrder() const = 0;
 };
 
 /**
@@ -1761,12 +1774,7 @@ public:
     PipelineBuilder& operator=(PipelineBuilder const& rhs) = delete;
     virtual ~PipelineBuilder() noexcept = default;
 
-    virtual void editorWindowResize(BasicPipeline *pipeline, scene::RenderWindow *window, uint32_t width, uint32_t height) = 0;
-    virtual void editorSceneViewResize(BasicPipeline *pipeline, scene::RenderWindow *window, uint32_t width, uint32_t height) = 0;
-    virtual void editorGameViewResize(BasicPipeline *pipeline, scene::RenderWindow *window, uint32_t width, uint32_t height) = 0;
-    virtual void editorPreviewResize(BasicPipeline *pipeline, scene::RenderWindow *window, uint32_t width, uint32_t height) = 0;
-    virtual void gameWindowResize(BasicPipeline *pipeline, scene::RenderWindow *window, uint32_t width, uint32_t height) = 0;
-    virtual void customWindowResize(BasicPipeline *pipeline, scene::RenderWindow *window, uint32_t width, uint32_t height) = 0;
+    virtual void windowResize(BasicPipeline *pipeline, scene::RenderWindow *window, scene::Camera *camera, uint32_t width, uint32_t height) = 0;
     /**
      * @en Setup render graph
      * @zh 构建渲染管线
@@ -1803,59 +1811,6 @@ public:
     static RenderingModule* init(gfx::Device* deviceIn, const ccstd::vector<unsigned char>& bufferIn);
     static void destroy(RenderingModule* renderingModule) noexcept;
     static Pipeline *createPipeline();
-};
-
-struct HBAO {
-    bool enabled{false};
-    float radiusScale{1};
-    float angleBiasDegree{10};
-    float blurSharpness{3};
-    float aoSaturation{1};
-    bool needBlur{false};
-};
-
-struct DepthOfField {
-    bool enabled{false};
-    float focusDistance{0};
-    float focusRange{0};
-    float bokehRadius{1};
-};
-
-struct Bloom {
-    bool enabled{false};
-    bool enableAlphaMask{false};
-    bool useHdrIlluminance{false};
-    uint32_t iterations{3};
-    float threshold{0.8};
-    float intensity{2.3};
-};
-
-struct ColorGrading {
-    bool enabled{false};
-    float contribute{0};
-    IntrusivePtr<gfx::Texture> colorGradingMap;
-};
-
-struct FSR {
-    bool enabled{false};
-    float sharpness{0.8};
-};
-
-struct FXAA {
-    bool enabled{false};
-};
-
-struct ForwardPipeline {
-    uint32_t mobileMaxSpotLightShadowMaps{4};
-};
-
-struct PipelineSettings {
-    ForwardPipeline forwardPipeline;
-    DepthOfField depthOfField;
-    Bloom bloom;
-    ColorGrading colorGrading;
-    FSR fsr;
-    FXAA fxaa;
 };
 
 } // namespace render

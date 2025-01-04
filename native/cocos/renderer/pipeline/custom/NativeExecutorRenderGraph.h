@@ -59,7 +59,12 @@ struct RenderGraphVisitorContext {
     NativePipeline* ppl = nullptr;
     ccstd::pmr::unordered_map<
         RenderGraph::vertex_descriptor,
-        gfx::DescriptorSet*>& renderGraphDescriptorSet;
+        PmrFlatMap<NameLocalID, ResourceGraph::vertex_descriptor>>& perPassResourceIndex;
+    ccstd::pmr::unordered_map<
+        RenderGraph::vertex_descriptor,
+        std::tuple<gfx::DescriptorSet*, gfx::DescriptorSet*>>& renderGraphDescriptorSet;
+    ccstd::pmr::unordered_map<
+        RenderGraph::vertex_descriptor, gfx::DescriptorSet*>& uiDescriptorSet;
     ccstd::pmr::unordered_map<
         RenderGraph::vertex_descriptor,
         gfx::DescriptorSet*>& profilerPerPassDescriptorSets;
@@ -67,11 +72,11 @@ struct RenderGraphVisitorContext {
         RenderGraph::vertex_descriptor,
         gfx::DescriptorSet*>& perInstanceDescriptorSets;
     ProgramLibrary* programLib = nullptr;
+    ccstd::pmr::vector<ccstd::optional<gfx::Viewport>>& viewportStack;
     CustomRenderGraphContext customContext;
     boost::container::pmr::memory_resource* scratch = nullptr;
     gfx::RenderPass* currentPass = nullptr;
     uint32_t subpassIndex = 0;
-    LayoutGraphData::vertex_descriptor currentPassLayoutID = LayoutGraphData::null_vertex();
     RenderGraph::vertex_descriptor currentInFlightPassID = RenderGraph::null_vertex();
     Mat4 currentProjMatrix;
 };

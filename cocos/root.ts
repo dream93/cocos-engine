@@ -22,10 +22,7 @@
  THE SOFTWARE.
 */
 
-import { Pool, cclegacy, warnID, settings, Settings, macro, log } from './core';
-import type { RenderPipeline } from './rendering/render-pipeline';
-import { DeferredPipeline } from './rendering/deferred/deferred-pipeline';
-import { createDefaultPipeline } from './rendering/forward/forward-pipeline';
+import { Pool, cclegacy, warnID, settings, macro, log, errorID, SettingsCategory } from './core';
 import { DebugView } from './rendering/debug-view';
 import { Camera, CameraType, Light, Model, TrackingType } from './render-scene/scene';
 import type { DataPoolManager } from './3d/skeletal-animation/data-pool-manager';
@@ -37,11 +34,11 @@ import { SpotLight } from './render-scene/scene/spot-light';
 import { PointLight } from './render-scene/scene/point-light';
 import { RangedDirectionalLight } from './render-scene/scene/ranged-directional-light';
 import { RenderWindow, IRenderWindowInfo } from './render-scene/core/render-window';
-import { ColorAttachment, DepthStencilAttachment, RenderPassInfo, StoreOp, Device, Swapchain, Feature, deviceManager, LegacyRenderMode } from './gfx';
+import { ColorAttachment, DepthStencilAttachment, RenderPassInfo, StoreOp, Device, Swapchain, deviceManager, LegacyRenderMode } from './gfx';
 import { BasicPipeline, PipelineRuntime } from './rendering/custom/pipeline';
 import { Batcher2D } from './2d/renderer/batcher-2d';
-import { IPipelineEvent } from './rendering/pipeline-event';
-import { localDescriptorSetLayout_ResizeMaxJoints, UBOCamera, UBOGlobal, UBOLocal, UBOShadow, UBOWorldBound } from './rendering/define';
+import { IPipelineEvent, PipelineEventProcessor } from './rendering/pipeline-event';
+import { localDescriptorSetLayout_ResizeMaxJoints, UBOCameraEnum, UBOGlobalEnum, UBOLocalEnum, UBOShadowEnum, UBOWorldBound } from './rendering/define';
 import { XREye, XRPoseType } from './xr/xr-enums';
 import { ICustomJointTextureLayout } from './3d/skeletal-animation/skeletal-animation-utils';
 
@@ -210,9 +207,6 @@ export class Root {
     public set fixedFPS (fps: number) {
         if (fps > 0) {
             this._fixedFPS = fps;
-            this._fixedFPSFrameTime = 1000.0 / fps;
-        } else {
-            this._fixedFPSFrameTime = 0;
         }
     }
 
@@ -248,18 +242,18 @@ export class Root {
      */
     public _createWindowFun: (root: Root) => RenderWindow = null!;
 
-    private _device: Device;
+    private declare _device: Device;
     private _windows: RenderWindow[] = [];
     private _mainWindow: RenderWindow | null = null;
     private _curWindow: RenderWindow | null = null;
     private _tempWindow: RenderWindow | null = null;
     private _usesCustomPipeline = true;
     private _pipeline: PipelineRuntime | null = null;
-    private _pipelineEvent: IPipelineEvent | null = null;
-    private _classicPipeline: RenderPipeline | null = null;
+    private _pipelineEvent: IPipelineEvent | null = new PipelineEventProcessor();
+    private _classicPipeline: (PipelineRuntime & IPipelineEvent) | null = null;
     private _customPipeline: BasicPipeline | null = null;
     private _batcher: Batcher2D | null = null;
-    private _dataPoolMgr: DataPoolManager;
+    private declare _dataPoolMgr: DataPoolManager;
     private _scenes: RenderScene[] = [];
     private _modelPools = new Map<Constructor<Model>, Pool<Model>>();
     private _cameraPool: Pool<Camera> | null = null;
@@ -270,7 +264,6 @@ export class Root {
     private _fps = 0;
     private _fixedFPS = 0;
     private _useDeferredPipeline = false;
-    private _fixedFPSFrameTime = 0;
     private _cumulativeTime = 0;
     private _frameTime = 0;
     private declare _naitveObj: any;
@@ -315,7 +308,7 @@ export class Root {
         });
         this._curWindow = this._mainWindow;
         const customJointTextureLayouts = settings.querySettings(
-            Settings.Category.ANIMATION,
+            SettingsCategory.ANIMATION,
             'customJointTextureLayouts',
         ) as ICustomJointTextureLayout[] || [];
         this._dataPoolMgr?.jointTexturePool.registerCustomTextureLayouts(customJointTextureLayouts);
@@ -370,45 +363,34 @@ export class Root {
      * @param rppl The render pipeline
      * @returns The setup is successful or not
      */
-    public setRenderPipeline (rppl?: RenderPipeline): boolean {
-        const { internal, director, rendering } = cclegacy;
+    public setRenderPipeline (useCustomPipeline?: boolean): boolean {
+        const { internal, director, rendering, legacy_rendering } = cclegacy;
+        if (rendering === undefined && legacy_rendering === undefined) {
+            errorID(1223);
+            return false;
+        }
         //-----------------------------------------------
         // prepare classic pipeline
         //-----------------------------------------------
-        if (rppl instanceof DeferredPipeline) {
-            this._useDeferredPipeline = true;
-        }
-
         let isCreateDefaultPipeline = false;
-        if (!rppl) {
-            rppl = createDefaultPipeline();
-            isCreateDefaultPipeline = true;
-        }
-
-        // now cluster just enabled in deferred pipeline
-        if (!this._useDeferredPipeline || !this.device.hasFeature(Feature.COMPUTE_SHADER)) {
-            // disable cluster
-            rppl.clusterEnabled = false;
-        }
-        rppl.bloomEnabled = false;
-
-        //-----------------------------------------------
-        // choose pipeline
-        //-----------------------------------------------
-        if (macro.CUSTOM_PIPELINE_NAME !== '' && rendering && this.usesCustomPipeline) {
+        if (useCustomPipeline) {
             this._customPipeline = rendering.createCustomPipeline();
             isCreateDefaultPipeline = true;
             this._pipeline = this._customPipeline!;
-            this._pipelineEvent = rppl;
-            log('Using custom pipeline');
+            // Use default _pipelineEvent
+            log(`Using custom pipeline: ${macro.CUSTOM_PIPELINE_NAME}`);
         } else {
-            this._classicPipeline = rppl;
+            const rppl: (PipelineRuntime & IPipelineEvent) = legacy_rendering.createDefaultPipeline();
+            isCreateDefaultPipeline = true;
+            log(`Using legacy pipeline`);
+
+            this._classicPipeline = rppl!;
             this._pipeline = this._classicPipeline;
-            this._pipelineEvent = this._classicPipeline;
+            this._pipelineEvent = this._classicPipeline; // Use forward pipeline's pipeline event
             this._usesCustomPipeline = false;
         }
 
-        const renderMode = settings.querySettings(Settings.Category.RENDERING, 'renderMode');
+        const renderMode = settings.querySettings(SettingsCategory.RENDERING, 'renderMode');
         if (renderMode !== LegacyRenderMode.HEADLESS || this._classicPipeline) {
             if (!this._pipeline.activate(this._mainWindow!.swapchain)) {
                 if (isCreateDefaultPipeline) {
@@ -483,17 +465,6 @@ export class Root {
      */
     public frameMove (deltaTime: number): void {
         this._frameTime = deltaTime;
-
-        /*
-        if (this._fixedFPSFrameTime > 0) {
-
-            const elapsed = this._frameTime * 1000.0;
-            if (this._fixedFPSFrameTime > elapsed) {
-
-                setTimeout(function () {}, this._fixedFPSFrameTime - elapsed);
-            }
-        }
-        */
 
         ++this._frameCount;
         this._cumulativeTime += deltaTime;
@@ -741,7 +712,7 @@ export class Root {
                 for (let i = 0; i < webxrHmdPoseInfos.length; i++) {
                     const info = webxrHmdPoseInfos[i];
                     if ((info.code === XRPoseType.VIEW_LEFT && xrEye === XREye.LEFT)
-                    || (info.code === XRPoseType.VIEW_RIGHT && xrEye === XREye.RIGHT)) {
+                        || (info.code === XRPoseType.VIEW_RIGHT && xrEye === XREye.RIGHT)) {
                         cameraPosition[0] = info.position.x;
                         cameraPosition[1] = info.position.y;
                         cameraPosition[2] = info.position.z;
@@ -768,7 +739,7 @@ export class Root {
             for (let i = cameraList.length - 1; i >= 0; i--) {
                 const camera = cameraList[i];
                 const isMismatchedCam = (xrEye === XREye.LEFT && camera.cameraType === CameraType.RIGHT_EYE)
-                        || (xrEye === XREye.RIGHT && camera.cameraType === CameraType.LEFT_EYE);
+                    || (xrEye === XREye.RIGHT && camera.cameraType === CameraType.LEFT_EYE);
                 if (isMismatchedCam) {
                     // currently is left eye loop, so right camera do not need active
                     cameraList.splice(i, 1);
@@ -834,7 +805,7 @@ export class Root {
 
     private _resizeMaxJointForDS (): void {
         // TODO: usedUBOVectorCount should be estimated more carefully, the UBOs used could vary in different scenes.
-        const usedUBOVectorCount = Math.max((UBOGlobal.COUNT + UBOCamera.COUNT + UBOShadow.COUNT + UBOLocal.COUNT + UBOWorldBound.COUNT) / 4, 100);
+        const usedUBOVectorCount = Math.max((UBOGlobalEnum.COUNT + UBOCameraEnum.COUNT + UBOShadowEnum.COUNT + UBOLocalEnum.COUNT + UBOWorldBound.COUNT) / 4, 100);
         let maxJoints = Math.floor((deviceManager.gfxDevice.capabilities.maxVertexUniformVectors - usedUBOVectorCount) / 3);
         maxJoints = maxJoints < 256 ? maxJoints : 256;
         localDescriptorSetLayout_ResizeMaxJoints(maxJoints);

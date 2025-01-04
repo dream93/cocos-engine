@@ -211,7 +211,7 @@ export class BaseRenderData {
  * @deprecated since v3.5.0, this is an engine private interface that will be removed in the future.
  */
 export class RenderData extends BaseRenderData {
-    public static add (vertexFormat = vfmtPosUvColor, accessor?: StaticVBAccessor): RenderData {
+    public static add (vertexFormat = vfmtPosUvColor, accessor: StaticVBAccessor | null = null): RenderData {
         const rd = new RenderData(vertexFormat, accessor);
         if (!accessor) {
             const batcher = director.root!.batcher2D;
@@ -311,7 +311,7 @@ export class RenderData extends BaseRenderData {
     public vertexRow = 1;
     public vertexCol = 1;
 
-    public constructor (vertexFormat = vfmtPosUvColor, accessor?: StaticVBAccessor) {
+    public constructor (vertexFormat = vfmtPosUvColor, accessor: StaticVBAccessor | null = null) {
         super(vertexFormat);
         if (!accessor) {
             accessor = this.batcher.switchBufferAccessor(this._vertexFormat);
@@ -484,7 +484,9 @@ export class RenderData extends BaseRenderData {
         // Hack Do not update pre frame
         if (JSB && this.multiOwner === false) {
             if (DEBUG) {
-                assert(this._renderDrawInfo.render2dBuffer.length === this._floatStride * this._data.length, 'Vertex count doesn\'t match.');
+                if (this._renderDrawInfo && this._renderDrawInfo.render2dBuffer) {
+                    assert(this._renderDrawInfo.render2dBuffer.length === this._floatStride * this._data.length, 'Vertex count doesn\'t match.');
+                }
             }
             // sync shared buffer to native
             this._renderDrawInfo.fillRender2dBuffer(this._data);
@@ -545,7 +547,9 @@ export class MeshRenderData extends BaseRenderData {
     /**
      * @deprecated
      */
-    set formatByte (value: number) { }
+    set formatByte (value: number) {
+        // empty
+    }
     get formatByte (): number { return this.stride; }
 
     get floatStride (): number { return this._floatStride; }
@@ -556,8 +560,8 @@ export class MeshRenderData extends BaseRenderData {
     get vDataOffset (): number { return this._byteLength >>> 2; }
 
     public _isMeshBuffer = true;
-    public vData: Float32Array;
-    public iData: Uint16Array;
+    public declare vData: Float32Array;
+    public declare iData: Uint16Array;
     /**
      * First vertex used in the current IA
      */
@@ -578,7 +582,7 @@ export class MeshRenderData extends BaseRenderData {
     public lastFilledIndex = 0;
     public lastFilledVertex = 0;
 
-    public frame;
+    public frame: SpriteFrame | null = null;
 
     private _byteLength = 0;
     private _vertexBuffers: Buffer[] = [];
@@ -741,7 +745,7 @@ export class MeshRenderData extends BaseRenderData {
         }
     }
 
-    protected _reallocBuffer (vCount, iCount): void {
+    protected _reallocBuffer (vCount: number, iCount: number): void {
         // copy old data
         const oldVData = this.vData;
         this.vData = new Float32Array(vCount);
@@ -769,8 +773,10 @@ export class MeshRenderData extends BaseRenderData {
 
             this._renderDrawInfo.setIsMeshBuffer(this._isMeshBuffer);
             this._renderDrawInfo.setMaterial(this.material!);
-            this._renderDrawInfo.setTexture(this.frame?.getGFXTexture());
-            this._renderDrawInfo.setSampler(this.frame?.getGFXSampler());
+            if (this.frame) {
+                this._renderDrawInfo.setTexture(this.frame.getGFXTexture());
+                this._renderDrawInfo.setSampler(this.frame.getGFXSampler());
+            }
         }
     }
 

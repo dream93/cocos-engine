@@ -1,7 +1,7 @@
-/****************************************************************************
- Copyright (c) 2021-2023 Xiamen Yaji Software Co., Ltd.
+/*
+ Copyright (c) 2021-2024 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
-****************************************************************************/
+*/
 
 /**
  * ========================= !DO NOT CHANGE THE FOLLOWING SECTION MANUALLY! =========================
@@ -50,6 +50,94 @@
 namespace cc {
 
 namespace render {
+
+enum class DescriptorTypeOrder {
+    UNIFORM_BUFFER,
+    DYNAMIC_UNIFORM_BUFFER,
+    SAMPLER_TEXTURE,
+    SAMPLER,
+    TEXTURE,
+    STORAGE_BUFFER,
+    DYNAMIC_STORAGE_BUFFER,
+    STORAGE_IMAGE,
+    INPUT_ATTACHMENT,
+};
+
+struct Descriptor {
+    Descriptor() = default;
+    Descriptor(gfx::Type typeIn) noexcept // NOLINT
+    : type(typeIn) {}
+
+    gfx::Type type{gfx::Type::UNKNOWN};
+    uint32_t count{1};
+};
+
+struct DescriptorBlock {
+    ccstd::map<ccstd::string, Descriptor> descriptors;
+    ccstd::map<ccstd::string, gfx::UniformBlock> uniformBlocks;
+    uint32_t capacity{0};
+    uint32_t count{0};
+};
+
+struct DescriptorBlockFlattened {
+    ccstd::vector<ccstd::string> descriptorNames;
+    ccstd::vector<ccstd::string> uniformBlockNames;
+    ccstd::vector<Descriptor> descriptors;
+    ccstd::vector<gfx::UniformBlock> uniformBlocks;
+    uint32_t capacity{0};
+    uint32_t count{0};
+};
+
+struct DescriptorBlockIndex {
+    DescriptorBlockIndex() = default;
+    DescriptorBlockIndex(UpdateFrequency updateFrequencyIn, ParameterType parameterTypeIn, DescriptorTypeOrder descriptorTypeIn, gfx::ShaderStageFlagBit visibilityIn) noexcept
+    : updateFrequency(updateFrequencyIn),
+      parameterType(parameterTypeIn),
+      descriptorType(descriptorTypeIn),
+      visibility(visibilityIn) {}
+
+    UpdateFrequency updateFrequency{UpdateFrequency::PER_INSTANCE};
+    ParameterType parameterType{ParameterType::CONSTANTS};
+    DescriptorTypeOrder descriptorType{DescriptorTypeOrder::UNIFORM_BUFFER};
+    gfx::ShaderStageFlagBit visibility{gfx::ShaderStageFlagBit::NONE};
+};
+
+inline bool operator<(const DescriptorBlockIndex& lhs, const DescriptorBlockIndex& rhs) noexcept {
+    return std::forward_as_tuple(lhs.updateFrequency, lhs.parameterType, lhs.descriptorType, lhs.visibility) <
+           std::forward_as_tuple(rhs.updateFrequency, rhs.parameterType, rhs.descriptorType, rhs.visibility);
+}
+
+struct DescriptorGroupBlockIndex {
+    DescriptorGroupBlockIndex() = default;
+    DescriptorGroupBlockIndex(UpdateFrequency updateFrequencyIn, ParameterType parameterTypeIn, DescriptorTypeOrder descriptorTypeIn, gfx::ShaderStageFlagBit visibilityIn, AccessType accessTypeIn, ViewDimension viewDimensionIn, gfx::Format formatIn) noexcept
+    : updateFrequency(updateFrequencyIn),
+      parameterType(parameterTypeIn),
+      descriptorType(descriptorTypeIn),
+      visibility(visibilityIn),
+      accessType(accessTypeIn),
+      viewDimension(viewDimensionIn),
+      format(formatIn) {}
+
+    UpdateFrequency updateFrequency{UpdateFrequency::PER_INSTANCE};
+    ParameterType parameterType{ParameterType::CONSTANTS};
+    DescriptorTypeOrder descriptorType{DescriptorTypeOrder::UNIFORM_BUFFER};
+    gfx::ShaderStageFlagBit visibility{gfx::ShaderStageFlagBit::NONE};
+    AccessType accessType{AccessType::READ};
+    ViewDimension viewDimension{ViewDimension::TEX2D};
+    gfx::Format format{gfx::Format::UNKNOWN};
+};
+
+inline bool operator<(const DescriptorGroupBlockIndex& lhs, const DescriptorGroupBlockIndex& rhs) noexcept {
+    return std::forward_as_tuple(lhs.updateFrequency, lhs.parameterType, lhs.descriptorType, lhs.visibility, lhs.accessType, lhs.viewDimension, lhs.format) <
+           std::forward_as_tuple(rhs.updateFrequency, rhs.parameterType, rhs.descriptorType, rhs.visibility, rhs.accessType, rhs.viewDimension, rhs.format);
+}
+
+struct DescriptorGroupBlock {
+    ccstd::map<ccstd::string, Descriptor> descriptors;
+    ccstd::map<ccstd::string, gfx::UniformBlock> uniformBlocks;
+    uint32_t capacity{0};
+    uint32_t count{0};
+};
 
 struct DescriptorDB {
     using allocator_type = boost::container::pmr::polymorphic_allocator<char>;
@@ -102,7 +190,7 @@ struct LayoutGraph {
         return {_vertices.get_allocator().resource()};
     }
 
-    inline boost::container::pmr::memory_resource* resource() const noexcept {
+    boost::container::pmr::memory_resource* resource() const noexcept {
         return get_allocator().resource();
     }
 
@@ -153,29 +241,29 @@ struct LayoutGraph {
     using vertices_size_type = uint32_t;
 
     // VertexList help functions
-    inline ccstd::pmr::vector<OutEdge>& getOutEdgeList(vertex_descriptor v) noexcept {
+    ccstd::pmr::vector<OutEdge>& getOutEdgeList(vertex_descriptor v) noexcept {
         return _vertices[v].outEdges;
     }
-    inline const ccstd::pmr::vector<OutEdge>& getOutEdgeList(vertex_descriptor v) const noexcept {
+    const ccstd::pmr::vector<OutEdge>& getOutEdgeList(vertex_descriptor v) const noexcept {
         return _vertices[v].outEdges;
     }
 
-    inline ccstd::pmr::vector<InEdge>& getInEdgeList(vertex_descriptor v) noexcept {
+    ccstd::pmr::vector<InEdge>& getInEdgeList(vertex_descriptor v) noexcept {
         return _vertices[v].inEdges;
     }
-    inline const ccstd::pmr::vector<InEdge>& getInEdgeList(vertex_descriptor v) const noexcept {
+    const ccstd::pmr::vector<InEdge>& getInEdgeList(vertex_descriptor v) const noexcept {
         return _vertices[v].inEdges;
     }
 
-    inline boost::integer_range<vertex_descriptor> getVertexList() const noexcept {
+    boost::integer_range<vertex_descriptor> getVertexList() const noexcept {
         return {0, static_cast<vertices_size_type>(_vertices.size())};
     }
 
-    inline vertex_descriptor getCurrentID() const noexcept {
+    vertex_descriptor getCurrentID() const noexcept {
         return static_cast<vertex_descriptor>(_vertices.size());
     }
 
-    inline ccstd::pmr::vector<boost::default_color_type> colors(boost::container::pmr::memory_resource* mr) const {
+    ccstd::pmr::vector<boost::default_color_type> colors(boost::container::pmr::memory_resource* mr) const {
         return ccstd::pmr::vector<boost::default_color_type>(_vertices.size(), mr);
     }
 
@@ -201,17 +289,17 @@ struct LayoutGraph {
     using ownerships_size_type = edges_size_type;
 
     // AddressableGraph help functions
-    inline ccstd::pmr::vector<OutEdge>& getChildrenList(vertex_descriptor v) noexcept {
+    ccstd::pmr::vector<OutEdge>& getChildrenList(vertex_descriptor v) noexcept {
         return _vertices[v].outEdges;
     }
-    inline const ccstd::pmr::vector<OutEdge>& getChildrenList(vertex_descriptor v) const noexcept {
+    const ccstd::pmr::vector<OutEdge>& getChildrenList(vertex_descriptor v) const noexcept {
         return _vertices[v].outEdges;
     }
 
-    inline ccstd::pmr::vector<InEdge>& getParentsList(vertex_descriptor v) noexcept {
+    ccstd::pmr::vector<InEdge>& getParentsList(vertex_descriptor v) noexcept {
         return _vertices[v].inEdges;
     }
-    inline const ccstd::pmr::vector<InEdge>& getParentsList(vertex_descriptor v) const noexcept {
+    const ccstd::pmr::vector<InEdge>& getParentsList(vertex_descriptor v) const noexcept {
         return _vertices[v].inEdges;
     }
 
@@ -314,14 +402,14 @@ inline bool operator<(const NameLocalID& lhs, const NameLocalID& rhs) noexcept {
 
 struct DescriptorData {
     DescriptorData() = default;
-    DescriptorData(NameLocalID descriptorIDIn, gfx::Type typeIn, uint32_t countIn) noexcept
+    DescriptorData(const NameLocalID& descriptorIDIn, gfx::Type typeIn, uint32_t countIn) noexcept
     : descriptorID(descriptorIDIn),
       type(typeIn),
       count(countIn) {}
-    DescriptorData(NameLocalID descriptorIDIn, gfx::Type typeIn) noexcept
+    DescriptorData(const NameLocalID& descriptorIDIn, gfx::Type typeIn) noexcept
     : descriptorID(descriptorIDIn),
       type(typeIn) {}
-    DescriptorData(NameLocalID descriptorIDIn) noexcept // NOLINT
+    DescriptorData(const NameLocalID& descriptorIDIn) noexcept // NOLINT
     : descriptorID(descriptorIDIn) {}
 
     NameLocalID descriptorID;
@@ -397,6 +485,74 @@ struct DescriptorSetData {
     IntrusivePtr<gfx::DescriptorSet> descriptorSet;
 };
 
+struct DescriptorGroupBlockData {
+    using allocator_type = boost::container::pmr::polymorphic_allocator<char>;
+    allocator_type get_allocator() const noexcept { // NOLINT
+        return {descriptors.get_allocator().resource()};
+    }
+
+    DescriptorGroupBlockData(const allocator_type& alloc) noexcept; // NOLINT
+    DescriptorGroupBlockData(DescriptorTypeOrder typeIn, gfx::ShaderStageFlagBit visibilityIn, AccessType accessTypeIn, ViewDimension viewDimensionIn, gfx::Format formatIn, uint32_t capacityIn, const allocator_type& alloc) noexcept;
+    DescriptorGroupBlockData(DescriptorGroupBlockData&& rhs, const allocator_type& alloc);
+    DescriptorGroupBlockData(DescriptorGroupBlockData const& rhs, const allocator_type& alloc);
+
+    DescriptorGroupBlockData(DescriptorGroupBlockData&& rhs) noexcept = default;
+    DescriptorGroupBlockData(DescriptorGroupBlockData const& rhs) = delete;
+    DescriptorGroupBlockData& operator=(DescriptorGroupBlockData&& rhs) = default;
+    DescriptorGroupBlockData& operator=(DescriptorGroupBlockData const& rhs) = default;
+
+    DescriptorTypeOrder type{DescriptorTypeOrder::UNIFORM_BUFFER};
+    gfx::ShaderStageFlagBit visibility{gfx::ShaderStageFlagBit::NONE};
+    AccessType accessType{AccessType::READ};
+    ViewDimension viewDimension{ViewDimension::TEX2D};
+    gfx::Format format{gfx::Format::UNKNOWN};
+    uint32_t offset{0};
+    uint32_t capacity{0};
+    ccstd::pmr::vector<DescriptorData> descriptors;
+};
+
+struct DescriptorGroupLayoutData {
+    using allocator_type = boost::container::pmr::polymorphic_allocator<char>;
+    allocator_type get_allocator() const noexcept { // NOLINT
+        return {descriptorGroupBlocks.get_allocator().resource()};
+    }
+
+    DescriptorGroupLayoutData(const allocator_type& alloc) noexcept; // NOLINT
+    DescriptorGroupLayoutData(uint32_t slotIn, uint32_t capacityIn, ccstd::pmr::vector<DescriptorGroupBlockData> descriptorGroupBlocksIn, PmrUnorderedMap<NameLocalID, gfx::UniformBlock> uniformBlocksIn, PmrFlatMap<NameLocalID, uint32_t> bindingMapIn, const allocator_type& alloc) noexcept;
+    DescriptorGroupLayoutData(DescriptorGroupLayoutData&& rhs, const allocator_type& alloc);
+
+    DescriptorGroupLayoutData(DescriptorGroupLayoutData&& rhs) noexcept = default;
+    DescriptorGroupLayoutData(DescriptorGroupLayoutData const& rhs) = delete;
+    DescriptorGroupLayoutData& operator=(DescriptorGroupLayoutData&& rhs) = default;
+    DescriptorGroupLayoutData& operator=(DescriptorGroupLayoutData const& rhs) = delete;
+
+    uint32_t slot{0xFFFFFFFF};
+    uint32_t capacity{0};
+    uint32_t uniformBlockCapacity{0};
+    uint32_t samplerTextureCapacity{0};
+    ccstd::pmr::vector<DescriptorGroupBlockData> descriptorGroupBlocks;
+    PmrUnorderedMap<NameLocalID, gfx::UniformBlock> uniformBlocks;
+    PmrFlatMap<NameLocalID, uint32_t> bindingMap;
+};
+
+struct DescriptorGroupData {
+    using allocator_type = boost::container::pmr::polymorphic_allocator<char>;
+    allocator_type get_allocator() const noexcept { // NOLINT
+        return {descriptorGroupLayoutData.get_allocator().resource()};
+    }
+
+    DescriptorGroupData(const allocator_type& alloc) noexcept; // NOLINT
+    DescriptorGroupData(DescriptorGroupLayoutData descriptorGroupLayoutDataIn, const allocator_type& alloc) noexcept;
+    DescriptorGroupData(DescriptorGroupData&& rhs, const allocator_type& alloc);
+
+    DescriptorGroupData(DescriptorGroupData&& rhs) noexcept = default;
+    DescriptorGroupData(DescriptorGroupData const& rhs) = delete;
+    DescriptorGroupData& operator=(DescriptorGroupData&& rhs) = default;
+    DescriptorGroupData& operator=(DescriptorGroupData const& rhs) = delete;
+
+    DescriptorGroupLayoutData descriptorGroupLayoutData;
+};
+
 struct PipelineLayoutData {
     using allocator_type = boost::container::pmr::polymorphic_allocator<char>;
     allocator_type get_allocator() const noexcept { // NOLINT
@@ -412,6 +568,7 @@ struct PipelineLayoutData {
     PipelineLayoutData& operator=(PipelineLayoutData const& rhs) = delete;
 
     ccstd::pmr::map<UpdateFrequency, DescriptorSetData> descriptorSets;
+    ccstd::pmr::map<UpdateFrequency, DescriptorGroupData> descriptorGroups;
 };
 
 struct ShaderBindingData {
@@ -544,7 +701,7 @@ struct LayoutGraphData {
         return {_vertices.get_allocator().resource()};
     }
 
-    inline boost::container::pmr::memory_resource* resource() const noexcept {
+    boost::container::pmr::memory_resource* resource() const noexcept {
         return get_allocator().resource();
     }
 
@@ -594,29 +751,29 @@ struct LayoutGraphData {
     using vertices_size_type = uint32_t;
 
     // VertexList help functions
-    inline ccstd::pmr::vector<OutEdge>& getOutEdgeList(vertex_descriptor v) noexcept {
+    ccstd::pmr::vector<OutEdge>& getOutEdgeList(vertex_descriptor v) noexcept {
         return _vertices[v].outEdges;
     }
-    inline const ccstd::pmr::vector<OutEdge>& getOutEdgeList(vertex_descriptor v) const noexcept {
+    const ccstd::pmr::vector<OutEdge>& getOutEdgeList(vertex_descriptor v) const noexcept {
         return _vertices[v].outEdges;
     }
 
-    inline ccstd::pmr::vector<InEdge>& getInEdgeList(vertex_descriptor v) noexcept {
+    ccstd::pmr::vector<InEdge>& getInEdgeList(vertex_descriptor v) noexcept {
         return _vertices[v].inEdges;
     }
-    inline const ccstd::pmr::vector<InEdge>& getInEdgeList(vertex_descriptor v) const noexcept {
+    const ccstd::pmr::vector<InEdge>& getInEdgeList(vertex_descriptor v) const noexcept {
         return _vertices[v].inEdges;
     }
 
-    inline boost::integer_range<vertex_descriptor> getVertexList() const noexcept {
+    boost::integer_range<vertex_descriptor> getVertexList() const noexcept {
         return {0, static_cast<vertices_size_type>(_vertices.size())};
     }
 
-    inline vertex_descriptor getCurrentID() const noexcept {
+    vertex_descriptor getCurrentID() const noexcept {
         return static_cast<vertex_descriptor>(_vertices.size());
     }
 
-    inline ccstd::pmr::vector<boost::default_color_type> colors(boost::container::pmr::memory_resource* mr) const {
+    ccstd::pmr::vector<boost::default_color_type> colors(boost::container::pmr::memory_resource* mr) const {
         return ccstd::pmr::vector<boost::default_color_type>(_vertices.size(), mr);
     }
 
@@ -642,17 +799,17 @@ struct LayoutGraphData {
     using ownerships_size_type = edges_size_type;
 
     // AddressableGraph help functions
-    inline ccstd::pmr::vector<OutEdge>& getChildrenList(vertex_descriptor v) noexcept {
+    ccstd::pmr::vector<OutEdge>& getChildrenList(vertex_descriptor v) noexcept {
         return _vertices[v].outEdges;
     }
-    inline const ccstd::pmr::vector<OutEdge>& getChildrenList(vertex_descriptor v) const noexcept {
+    const ccstd::pmr::vector<OutEdge>& getChildrenList(vertex_descriptor v) const noexcept {
         return _vertices[v].outEdges;
     }
 
-    inline ccstd::pmr::vector<InEdge>& getParentsList(vertex_descriptor v) noexcept {
+    ccstd::pmr::vector<InEdge>& getParentsList(vertex_descriptor v) noexcept {
         return _vertices[v].inEdges;
     }
-    inline const ccstd::pmr::vector<InEdge>& getParentsList(vertex_descriptor v) const noexcept {
+    const ccstd::pmr::vector<InEdge>& getParentsList(vertex_descriptor v) const noexcept {
         return _vertices[v].inEdges;
     }
 

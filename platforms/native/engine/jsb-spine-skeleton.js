@@ -125,10 +125,8 @@ const cacheManager = require('./jsb-cache-manager');
         }
         this._jsbTextures = jsbTextures;
 
-        let filePath = null;
-        if (this.skeletonJsonStr) {
-            filePath = this.skeletonJsonStr;
-        } else {
+        let filePath = this.skeletonJsonStr;
+        if (!filePath) {
             filePath = cacheManager.getCache(this.nativeUrl) || this.nativeUrl;
         }
         this._skeletonCache = spine.initSkeletonData(uuid, filePath, atlasText, jsbTextures, this.scale);
@@ -366,7 +364,10 @@ const cacheManager = require('./jsb-cache-manager');
 
     skeleton._updateColor = function () {
         if (this._nativeSkeleton) {
-            const compColor = this.color;
+            const compColor = this._color;
+            this.setEntityColorDirty(true);
+            this.setEntityColor(compColor);
+            this.setEntityOpacity(this.node._uiProps.localOpacity);
             this._nativeSkeleton.setColor(compColor.r, compColor.g, compColor.b, compColor.a);
             this.markForUpdateRenderData();
         }

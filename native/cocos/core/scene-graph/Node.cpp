@@ -353,7 +353,8 @@ void Node::setSiblingIndex(index_t index) {
         return;
     }
     ccstd::vector<IntrusivePtr<Node>> &siblings = _parent->_children;
-    index = index != -1 ? index : static_cast<index_t>(siblings.size()) - 1;
+    index = index >= 0 ? index : static_cast<index_t>(siblings.size()) + index;
+    index = index >= 0 ? index : 0;
     index_t oldIdx = getIdxOfChild(siblings, this);
     if (index != oldIdx) {
         if (oldIdx != CC_INVALID_INDEX) {
@@ -542,7 +543,9 @@ void Node::invalidateChildren(TransformBit dirtyBit) { // NOLINT(misc-no-recursi
 }
 
 void Node::setWorldPosition(float x, float y, float z) {
-    if (_worldPosition.approxEquals({x, y, z})) {
+    bool forceUpdate = _parent != nullptr && (_transformFlags & static_cast<uint32_t>(TransformBit::POSITION)) != static_cast<uint32_t>(TransformBit::NONE);
+
+    if (!forceUpdate && _worldPosition.approxEquals({x, y, z})) {
         return;
     }
 
@@ -570,7 +573,9 @@ const Vec3 &Node::getWorldPosition() const {
 }
 
 void Node::setWorldRotation(float x, float y, float z, float w) {
-    if (_worldRotation.approxEquals({x, y, z, w})) {
+    bool forceUpdate = _parent != nullptr && (_transformFlags & static_cast<uint32_t>(TransformBit::ROTATION)) != static_cast<uint32_t>(TransformBit::NONE);
+
+    if (!forceUpdate && _worldRotation.approxEquals({x, y, z, w})) {
         return;
     }
 
@@ -600,10 +605,13 @@ const Quaternion &Node::getWorldRotation() const { // NOLINT(misc-no-recursion)
 }
 
 void Node::setWorldScale(float x, float y, float z) {
-    if (_worldScale.approxEquals({x, y, z})) {
+    bool forceUpdate = _parent != nullptr && (_transformFlags & static_cast<uint32_t>(TransformBit::SCALE)) != static_cast<uint32_t>(TransformBit::NONE);
+
+    if (!forceUpdate && _worldScale.approxEquals({x, y, z})) {
         return;
     }
 
+    TransformBit rotationFlag = TransformBit::NONE;
     if (_parent != nullptr) {
         updateWorldTransform(); // ensure reentryability
         Vec3 oldWorldScale = _worldScale;
@@ -611,7 +619,28 @@ void Node::setWorldScale(float x, float y, float z) {
         Mat3 localRS;
         Mat3 localRotInv;
         Mat4 worldMatrixTmp = _worldMatrix;
-        Vec3 rescaleFactor = _worldScale / oldWorldScale;
+        Vec3 rescaleFactor;
+        
+        if (oldWorldScale.x == 0) {
+            oldWorldScale.x = 1;
+            worldMatrixTmp.m[0] = 1.F;
+            rotationFlag = TransformBit::ROTATION;
+        }
+        
+        if (oldWorldScale.y == 0) {
+            oldWorldScale.y = 1;
+            worldMatrixTmp.m[5] = 1.F;
+            rotationFlag = TransformBit::ROTATION;
+        }
+        
+        if (oldWorldScale.z == 0) {
+            oldWorldScale.z = 1;
+            worldMatrixTmp.m[10] = 1.F;
+            rotationFlag = TransformBit::ROTATION;
+        }
+        
+        rescaleFactor = _worldScale / oldWorldScale;
+        
         // apply new world scale to temp world matrix
         worldMatrixTmp.scale(rescaleFactor); // need opt
         // get temp local matrix
@@ -626,6 +655,10 @@ void Node::setWorldScale(float x, float y, float z) {
         _localScale.x = Vec3{localRS.m[0], localRS.m[1], localRS.m[2]}.length();
         _localScale.y = Vec3{localRS.m[3], localRS.m[4], localRS.m[5]}.length();
         _localScale.z = Vec3{localRS.m[6], localRS.m[7], localRS.m[8]}.length();
+        
+        if (_localScale.x == 0 || _localScale.y == 0 || _localScale.z == 0) {
+            rotationFlag = TransformBit::ROTATION;
+        }
     } else {
         _worldScale.set(x, y, z);
         _localScale = _worldScale;
@@ -633,9 +666,9 @@ void Node::setWorldScale(float x, float y, float z) {
 
     notifyLocalScaleUpdated();
 
-    invalidateChildren(TransformBit::SCALE);
+    invalidateChildren(TransformBit::SCALE | rotationFlag);
     if (_eventMask & TRANSFORM_ON) {
-        emit<TransformChanged>(TransformBit::SCALE);
+        emit<TransformChanged>(TransformBit::SCALE | rotationFlag);
     }
 }
 
@@ -760,26 +793,7 @@ void Node::setMatrix(const Mat4 &val) {
 void Node::setWorldRotationFromEuler(float x, float y, float z) {
     Quaternion tmpRotation;
     Quaternion::fromEuler(x, y, z, &tmpRotation);
-    if (tmpRotation.approxEquals(_worldRotation)) {
-        return;
-    }
-
-    _worldRotation = tmpRotation;
-
-    if (_parent) {
-        _parent->updateWorldTransform();
-        _localRotation = _parent->_worldRotation.getConjugated() * _worldRotation;
-    } else {
-        _localRotation = _worldRotation;
-    }
-    _eulerDirty = true;
-
-    invalidateChildren(TransformBit::ROTATION);
-    if (_eventMask & TRANSFORM_ON) {
-        emit<TransformChanged>(TransformBit::ROTATION);
-    }
-
-    notifyLocalRotationUpdated();
+    setWorldRotation(tmpRotation);
 }
 
 void Node::setRTSInternal(Quaternion *rot, Vec3 *pos, Vec3 *scale, bool calledFromJS) {

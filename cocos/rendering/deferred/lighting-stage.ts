@@ -30,7 +30,7 @@
 import { ccclass, displayOrder, type, serializable } from 'cc.decorator';
 import { Camera } from '../../render-scene/scene/camera';
 import { LightType } from '../../render-scene/scene/light';
-import { UBODeferredLight, SetIndex, UBOForwardLight, UBOLocal } from '../define';
+import { UBODeferredLight, SetIndex, UBOForwardLight, UBOLocal, UBOLocalEnum } from '../define';
 import { getPhaseID } from '../pass-phase';
 import { Color, Rect, Buffer, BufferUsageBit, MemoryUsageBit, BufferInfo, BufferViewInfo, DescriptorSet,
     DescriptorSetLayout, DescriptorSetInfo, PipelineState, ClearFlagBit } from '../../gfx';
@@ -64,13 +64,12 @@ const colors: Color[] = [new Color(0, 0, 0, 1)];
 export class LightingStage extends RenderStage {
     private _deferredLitsBufs: Buffer = null!;
     private _maxDeferredLights = UBODeferredLight.LIGHTS_PER_PASS;
-    private _lightBufferData!: Float32Array;
+    private _lightBufferData: Float32Array = null!;
     private _lightMeterScale = 10000.0;
     private _descriptorSet: DescriptorSet = null!;
-    private _descriptorSetLayout!: DescriptorSetLayout;
     private _renderArea = new Rect();
-    private declare _planarQueue: PlanarShadowQueue;
-    private _uiPhase: UIPhase;
+    private _planarQueue: PlanarShadowQueue = null!;
+    private _uiPhase: UIPhase = new UIPhase();
 
     @type(Material)
     @serializable
@@ -92,7 +91,6 @@ export class LightingStage extends RenderStage {
 
     constructor () {
         super();
-        this._uiPhase = new UIPhase();
     }
 
     public initialize (info: IRenderStageInfo): boolean {
@@ -288,10 +286,10 @@ export class LightingStage extends RenderStage {
         const _localUBO = device.createBuffer(new BufferInfo(
             BufferUsageBit.UNIFORM | BufferUsageBit.TRANSFER_DST,
             MemoryUsageBit.DEVICE,
-            UBOLocal.SIZE,
-            UBOLocal.SIZE,
+            UBOLocalEnum.SIZE,
+            UBOLocalEnum.SIZE,
         ));
-        this._descriptorSet.bindBuffer(UBOLocal.BINDING, _localUBO);
+        this._descriptorSet.bindBuffer(UBOLocalEnum.BINDING, _localUBO);
     }
 
     public activate (pipeline: DeferredPipeline, flow: MainFlow): void {

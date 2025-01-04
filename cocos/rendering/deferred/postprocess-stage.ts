@@ -28,15 +28,16 @@
  */
 import { ccclass, displayOrder, type, serializable } from 'cc.decorator';
 import { Camera } from '../../render-scene/scene';
-import { SetIndex, UBOLocal } from '../define';
-import { Color, Rect, PipelineState, ClearFlagBit, DescriptorSetInfo, BufferInfo, BufferUsageBit, MemoryUsageBit } from '../../gfx';
+import { SetIndex, UBOLocalEnum } from '../define';
+import { Color, Rect, PipelineState, ClearFlagBit, DescriptorSetInfo, BufferInfo, BufferUsageBit, MemoryUsageBit, DescriptorSet, Buffer } from '../../gfx';
 import { IRenderStageInfo, RenderStage } from '../render-stage';
 import { CommonStagePriority } from '../enum';
 import { Material } from '../../asset/assets/material';
 import { PipelineStateManager } from '../pipeline-state-manager';
 import { RenderQueueDesc } from '../pipeline-serialization';
 import { renderProfiler } from '../pipeline-funcs';
-import { RenderFlow, RenderPipeline } from '..';
+import { RenderPipeline } from '../render-pipeline';
+import { RenderFlow } from '../render-flow';
 import { UIPhase } from '../ui-phase';
 import { DeferredPipelineSceneData } from './deferred-pipeline-scene-data';
 
@@ -66,8 +67,8 @@ export class PostProcessStage extends RenderStage {
 
     private _renderArea = new Rect();
     private declare _uiPhase: UIPhase;
-    private _stageDesc;
-    private _localUBO;
+    private _stageDesc: DescriptorSet | null = null;
+    private _localUBO: Buffer | null = null;
     constructor () {
         super();
         this._uiPhase = new UIPhase();
@@ -110,8 +111,14 @@ export class PostProcessStage extends RenderStage {
 
         colors[0].w = camera.clearColor.w;
 
-        cmdBuff.beginRenderPass(renderPass, framebuffer, this._renderArea,
-            colors, camera.clearDepth, camera.clearStencil);
+        cmdBuff.beginRenderPass(
+            renderPass,
+            framebuffer,
+            this._renderArea,
+            colors,
+            camera.clearDepth,
+            camera.clearStencil,
+        );
         cmdBuff.bindDescriptorSet(SetIndex.GLOBAL, pipeline.descriptorSet);
         // Postprocess
         const builtinPostProcess = (sceneData as DeferredPipelineSceneData).postprocessMaterial;
@@ -139,10 +146,10 @@ export class PostProcessStage extends RenderStage {
                 this._localUBO = device.createBuffer(new BufferInfo(
                     BufferUsageBit.UNIFORM | BufferUsageBit.TRANSFER_DST,
                     MemoryUsageBit.DEVICE,
-                    UBOLocal.SIZE,
-                    UBOLocal.SIZE,
+                    UBOLocalEnum.SIZE,
+                    UBOLocalEnum.SIZE,
                 ));
-                this._stageDesc.bindBuffer(UBOLocal.BINDING, this._localUBO);
+                this._stageDesc.bindBuffer(UBOLocalEnum.BINDING, this._localUBO);
             }
             this._stageDesc.update();
             cmdBuff.bindPipelineState(pso);

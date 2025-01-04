@@ -29,7 +29,7 @@ import { ImageAsset } from './image-asset';
 import { PresumedGFXTextureInfo, PresumedGFXTextureViewInfo, SimpleTexture } from './simple-texture';
 import { ITexture2DCreateInfo, Texture2D } from './texture-2d';
 import { legacyCC, ccwindow } from '../../core/global-exports';
-import { js, sys } from '../../core';
+import { errorID, js, sys } from '../../core';
 import { OS } from '../../../pal/system-info/enum-type';
 
 export type ITextureCubeCreateInfo = ITexture2DCreateInfo;
@@ -128,6 +128,10 @@ export class TextureCube extends SimpleTexture {
     @serializable
     _mipmapMode = MipmapMode.NONE;
 
+    constructor () {
+        super();
+    }
+
     /**
      * @en All levels of mipmap images, be noted, automatically generated mipmaps are not included.
      * When setup mipmap, the size of the texture and pixel format could be modified.
@@ -156,7 +160,7 @@ export class TextureCube extends SimpleTexture {
                 || front.length !== right.length
                 || front.length !== top.length
                 || front.length !== bottom.length) {
-                console.error('The number of mipmaps of each face is different.');
+                errorID(16347);
                 this._setMipmapParams([]);
                 return;
             }
@@ -267,8 +271,7 @@ export class TextureCube extends SimpleTexture {
             _forEachFace(faceAtlas, (face, faceIndex): void => {
                 ctx.clearRect(0, 0, imageAtlasAsset.width, imageAtlasAsset.height);
                 const drawImg = face.data as HTMLImageElement;
-                // NOTE: on OH platform, drawImage only supports ImageBitmap and PixelMap type, so we mark drawImg as any.
-                ctx.drawImage(drawImg as any, 0, 0);
+                ctx.drawImage(drawImg, 0, 0);
                 const rawData = ctx.getImageData(layoutInfo.left, layoutInfo.top, layoutInfo.width, layoutInfo.height);
 
                 const bufferAsset = new ImageAsset({
@@ -392,7 +395,7 @@ export class TextureCube extends SimpleTexture {
      * @param firstLevel @en First level to be updated. @zh 更新指定层的 mipmap。
      * @param count @en Mipmap level count to be updated。 @zh 指定要更新层的数量。
      */
-    public updateMipmaps (firstLevel = 0, count?: number): void {
+    public updateMipmaps (firstLevel = 0, count: number | undefined = undefined): void {
         if (firstLevel >= this._generatedMipmaps.length) {
             return;
         }

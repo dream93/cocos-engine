@@ -28,7 +28,7 @@ import { Material } from '../../asset/assets';
 import { Color, Vec2, cclegacy } from '../../core';
 import { ModelLocalBindings } from '../../rendering/define';
 import { Model } from '../../render-scene/scene';
-import { Root } from '../../root';
+import type { Root } from '../../root';
 import { TransformBit } from '../../scene-graph/node-enum';
 import { SpriteFrame } from '../assets/sprite-frame';
 import { ModelRenderer } from '../../misc';
@@ -49,6 +49,10 @@ enum SpriteMode {
 @menu('2D/SpriteRenderer')
 @executeInEditMode
 export class SpriteRenderer extends ModelRenderer {
+    constructor () {
+        super();
+    }
+
     /**
     * @en The spriteFrame that the component should render.
     * @zh 该组件应渲染的 spriteFrame。
@@ -134,7 +138,7 @@ export class SpriteRenderer extends ModelRenderer {
 
     public onDestroy (): void {
         if (this._model) {
-            cclegacy.director.root.destroyModel(this._model);
+            (cclegacy.director.root as Root).destroyModel(this._model);
             this._model = null;
             this._models.length = 0;
         }

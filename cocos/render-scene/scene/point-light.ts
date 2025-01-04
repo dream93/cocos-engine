@@ -22,7 +22,7 @@
  THE SOFTWARE.
 */
 
-import { cclegacy, geometry, Vec3 } from '../../core';
+import { cclegacy, geometry, v3, Vec3 } from '../../core';
 import { AABB } from '../../core/geometry';
 import { Light, LightType, nt2lm } from './light';
 
@@ -106,13 +106,11 @@ export class PointLight extends Light {
     private _range = 1.0;
     private _luminanceHDR = 0;
     private _luminanceLDR = 0;
-    private _pos: Vec3;
-    private _aabb: AABB;
+    private _pos: Vec3 = v3();
+    private _aabb: AABB = AABB.create();
 
     constructor () {
         super();
-        this._aabb = AABB.create();
-        this._pos = new Vec3();
         this._type = LightType.POINT;
     }
 

@@ -1,5 +1,3 @@
-import { innerWidth, innerHeight } from './WindowProperties';
-
 function Canvas () {}
 
 const CanvasProxy = new Proxy(Canvas, {
@@ -25,38 +23,38 @@ const CanvasProxy = new Proxy(Canvas, {
     canvas.style = {
       top: '0px',
       left: '0px',
-      width: `${innerWidth}px`,
-      height: `${innerHeight}px`,
+      width: `${window.innerWidth}px`,
+      height: `${window.innerHeight}px`,
     };
 
     canvas.addEventListener = function (type, listener, options = {}) {
       // console.log('canvas.addEventListener', type);
-      $global.document.addEventListener(type, listener, options);
+      globalThis.document.addEventListener(type, listener, options);
     };
 
     canvas.removeEventListener = function (type, listener) {
       // console.log('canvas.removeEventListener', type);
-      $global.document.removeEventListener(type, listener);
+      globalThis.document.removeEventListener(type, listener);
     };
 
     canvas.dispatchEvent = function (event = {}) {
       console.log('canvas.dispatchEvent', event.type, event);
       if (my.isIDE) {
-        $global.document.dispatchEvent(event);
+        globalThis.document.dispatchEvent(event);
       }
     };
 
     Object.defineProperty(canvas, 'clientWidth', {
       enumerable: true,
       get: function get () {
-        return innerWidth;
+        return window.innerWidth;
       },
     });
 
     Object.defineProperty(canvas, 'clientHeight', {
       enumerable: true,
       get: function get () {
-        return innerHeight;
+        return window.innerHeight;
       },
     });
 

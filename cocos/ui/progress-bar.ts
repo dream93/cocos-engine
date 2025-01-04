@@ -30,7 +30,7 @@ import { Size, Vec2, Vec3 } from '../core/math';
 import { Enum } from '../core/value-types';
 import { clamp01 } from '../core/math/utils';
 import { Sprite } from '../2d/components/sprite';
-import { warn } from '../core/platform/debug';
+import { warnID } from '../core/platform/debug';
 import { legacyCC } from '../core/global-exports';
 
 /**
@@ -100,6 +100,10 @@ Enum(Mode);
 @requireComponent(UITransform)
 // @executeInEditMode
 export class ProgressBar extends Component {
+    constructor () {
+        super();
+    }
+
     /**
      * @en
      * The targeted Sprite which will be changed progressively.
@@ -287,7 +291,6 @@ export class ProgressBar extends Component {
             const entTrans = entity._uiProps.uiTransformComp!;
             const entityAnchorPoint = entTrans.anchorPoint;
             const entitySize = entTrans.contentSize;
-            const entityPosition = entity.getPosition();
 
             let anchorPoint = new Vec2(0, 0.5);
             const progress = clamp01(this._progress);
@@ -323,7 +326,7 @@ export class ProgressBar extends Component {
             // handling filled mode
             if (this._mode === Mode.FILLED) {
                 if (this._barSprite.type !== Sprite.Type.FILLED) {
-                    warn('ProgressBar FILLED mode only works when barSprite\'s Type is FILLED!');
+                    warnID(16397);
                 } else {
                     if (this._reverse) {
                         actualLenth *= -1;
@@ -333,14 +336,15 @@ export class ProgressBar extends Component {
             } else if (this._barSprite.type !== Sprite.Type.FILLED) {
                 const anchorOffsetX = anchorPoint.x - entityAnchorPoint.x;
                 const anchorOffsetY = anchorPoint.y - entityAnchorPoint.y;
-                const finalPosition = new Vec3(totalWidth * anchorOffsetX, totalHeight * anchorOffsetY, 0);
 
-                entity.setPosition(entityPosition.x + finalPosition.x, entityPosition.y + finalPosition.y, entityPosition.z);
+                const finalPosition = new Vec3(entity.position);
+                finalPosition.add3f(totalWidth * anchorOffsetX, totalHeight * anchorOffsetY, 0);
+                entity.setPosition(finalPosition);
 
                 entTrans.setAnchorPoint(anchorPoint);
                 entTrans.setContentSize(finalContentSize);
             } else {
-                warn('ProgressBar non-FILLED mode only works when barSprite\'s Type is non-FILLED!');
+                warnID(16398);
             }
         }
     }

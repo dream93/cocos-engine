@@ -23,7 +23,6 @@
 ****************************************************************************/
 
 #include <algorithm>
-#include <iterator>
 #include "NativePipelineTypes.h"
 #include "cocos/renderer/pipeline/Define.h"
 #include "cocos/renderer/pipeline/InstancedBuffer.h"
@@ -60,7 +59,7 @@ void ProbeHelperQueue::removeMacro() const {
     }
 }
 
-uint32_t ProbeHelperQueue::getPassIndexFromLayout(
+int32_t ProbeHelperQueue::getPassIndexFromLayout(
     const cc::IntrusivePtr<cc::scene::SubModel> &subModel,
     LayoutGraphData::vertex_descriptor phaseLayoutId) {
     const auto &passes = subModel->getPasses();
@@ -69,7 +68,7 @@ uint32_t ProbeHelperQueue::getPassIndexFromLayout(
             return static_cast<int>(k);
         }
     }
-    return 0xFFFFFFFF;
+    return -1;
 }
 
 void ProbeHelperQueue::applyMacro(
@@ -255,15 +254,20 @@ void NativeRenderQueue::sort() {
 void NativeRenderQueue::recordCommands(
     gfx::CommandBuffer *cmdBuffer,
     gfx::RenderPass *renderPass,
-    uint32_t subpassIndex) const {
-    opaqueQueue.recordCommandBuffer(
-        renderPass, subpassIndex, cmdBuffer, lightByteOffset);
-    opaqueInstancingQueue.recordCommandBuffer(
-        renderPass, subpassIndex, cmdBuffer, lightByteOffset);
-    transparentQueue.recordCommandBuffer(
-        renderPass, subpassIndex, cmdBuffer, lightByteOffset);
-    transparentInstancingQueue.recordCommandBuffer(
-        renderPass, subpassIndex, cmdBuffer, lightByteOffset);
+    uint32_t subpassIndex,
+    SceneFlags sceneFlags) const {
+    if (any(sceneFlags & (SceneFlags::OPAQUE | SceneFlags::MASK))) {
+        opaqueQueue.recordCommandBuffer(
+            renderPass, subpassIndex, cmdBuffer, lightByteOffset);
+        opaqueInstancingQueue.recordCommandBuffer(
+            renderPass, subpassIndex, cmdBuffer, lightByteOffset);
+    }
+    if (any(sceneFlags & SceneFlags::BLEND)) {
+        transparentQueue.recordCommandBuffer(
+            renderPass, subpassIndex, cmdBuffer, lightByteOffset);
+        transparentInstancingQueue.recordCommandBuffer(
+            renderPass, subpassIndex, cmdBuffer, lightByteOffset);
+    }
 }
 
 } // namespace render

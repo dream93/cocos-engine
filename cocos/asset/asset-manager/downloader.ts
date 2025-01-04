@@ -32,6 +32,7 @@ import { files } from './shared';
 import { retry, RetryFunction, urlAppendTimestamp } from './utilities';
 import { IConfigOption } from './config';
 import { CCON, parseCCONJson, decodeCCONBinary } from '../../serialization/ccon';
+import type { AssetManager } from './asset-manager';
 
 export type DownloadHandler = (url: string, options: Record<string, any>, onComplete: ((err: Error | null, data?: any) => void)) => void;
 
@@ -347,6 +348,13 @@ export class Downloader {
     }
 
     /**
+     * @engineInternal
+     */
+    public get handlers (): Record<string, DownloadHandler> {
+        return this._downloaders;
+    }
+
+    /**
      * @en
      * Register custom handler if you want to change default behavior or extend downloader to download other format file.
      *
@@ -489,7 +497,7 @@ export class Downloader {
      * @deprecated loader.downloader.loadSubpackage is deprecated, please use AssetManager.loadBundle instead.
      */
     public loadSubpackage (name: string, completeCallback?: ((err?: Error | null) => void)): void {
-        cclegacy.assetManager.loadBundle(name, null, completeCallback);
+        (cclegacy.assetManager as AssetManager).loadBundle(name, null, completeCallback);
     }
 
     private constructor () {}

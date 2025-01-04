@@ -23,7 +23,7 @@
  THE SOFTWARE.
 */
 
-import { ccclass, executeInEditMode, executionOrder, help, menu, tooltip, multiline, type, displayOrder, serializable } from 'cc.decorator';
+import { ccclass, executeInEditMode, executionOrder, help, menu, multiline, type, displayOrder, serializable, editable } from 'cc.decorator';
 import { DEBUG, DEV, EDITOR } from 'internal:constants';
 import { Font, SpriteAtlas, TTFFont, SpriteFrame } from '../assets';
 import { EventTouch } from '../../input/types';
@@ -31,7 +31,6 @@ import { assert, warnID, Color, Vec2, CCObject, cclegacy, js, Size } from '../..
 import { HtmlTextParser, IHtmlTextParserResultObj, IHtmlTextParserStack } from '../utils/html-text-parser';
 import { Node } from '../../scene-graph';
 import { CacheMode, HorizontalTextAlignment, Label, VerticalTextAlignment } from './label';
-import { LabelOutline } from './label-outline';
 import { Sprite } from './sprite';
 import { UITransform } from '../framework';
 import { Component } from '../../scene-graph/component';
@@ -63,9 +62,9 @@ const labelPool = new js.Pool((seg: ISegment) => {
     if (!cclegacy.isValid(seg.node)) {
         return false;
     } else {
-        const outline = seg.node.getComponent(LabelOutline);
-        if (outline) {
-            outline.width = 0;
+        const label = seg.node.getComponent(Label);
+        if (label) {
+            label.outlineWidth = 0;
         }
     }
     return true;
@@ -163,7 +162,6 @@ export class RichText extends Component {
      * 富文本显示的文本内容。
      */
     @multiline
-    @tooltip('i18n:richtext.string')
     get string (): string {
         return this._string;
     }
@@ -184,7 +182,6 @@ export class RichText extends Component {
      * 文本内容的水平对齐方式。
      */
     @type(HorizontalTextAlignment)
-    @tooltip('i18n:richtext.horizontal_align')
     get horizontalAlign (): HorizontalTextAlignment {
         return this._horizontalAlign;
     }
@@ -207,7 +204,6 @@ export class RichText extends Component {
      * 文本内容的竖直对齐方式。
      */
     @type(VerticalTextAlignment)
-    @tooltip('i18n:richtext.vertical_align')
     get verticalAlign (): VerticalTextAlignment {
         return this._verticalAlign;
     }
@@ -229,7 +225,7 @@ export class RichText extends Component {
      * @zh
      * 富文本字体大小。
      */
-    @tooltip('i18n:richtext.font_size')
+    @editable
     get fontSize (): number {
         return this._fontSize;
     }
@@ -271,7 +267,7 @@ export class RichText extends Component {
      * @zh
      * 富文本定制系统字体。
      */
-    @tooltip('i18n:richtext.font_family')
+    @editable
     get fontFamily (): string {
         return this._fontFamily;
     }
@@ -290,7 +286,6 @@ export class RichText extends Component {
      * 富文本定制字体。
      */
     @type(Font)
-    @tooltip('i18n:richtext.font')
     get font (): TTFFont | null {
         return this._font;
     }
@@ -314,12 +309,11 @@ export class RichText extends Component {
 
     /**
      * @en
-     * Whether use system font name or not.
+     * Whether to use system font name or not.
      *
      * @zh
      * 是否使用系统字体。
      */
-    @tooltip('i18n:richtext.use_system_font')
     @displayOrder(12)
     get useSystemFont (): boolean {
         return this._isSystemFontUsed;
@@ -351,7 +345,6 @@ export class RichText extends Component {
      * 文本缓存模式, 该模式只支持系统字体。
      */
     @type(CacheMode)
-    @tooltip('i18n:richtext.cache_mode')
     get cacheMode (): CacheMode {
         return this._cacheMode;
     }
@@ -370,7 +363,7 @@ export class RichText extends Component {
      * @zh
      * 富文本的最大宽度。
      */
-    @tooltip('i18n:richtext.max_width')
+    @editable
     get maxWidth (): number {
         return this._maxWidth;
     }
@@ -392,7 +385,7 @@ export class RichText extends Component {
      * @zh
      * 富文本行高。
      */
-    @tooltip('i18n:richtext.line_height')
+    @editable
     get lineHeight (): number {
         return this._lineHeight;
     }
@@ -415,7 +408,6 @@ export class RichText extends Component {
      * 对于 img 标签里面的 src 属性名称，都需要在 imageAtlas 里面找到一个有效的 spriteFrame，否则 img tag 会判定为无效。
      */
     @type(SpriteAtlas)
-    @tooltip('i18n:richtext.image_atlas')
     get imageAtlas (): SpriteAtlas | null {
         return this._imageAtlas;
     }
@@ -438,7 +430,7 @@ export class RichText extends Component {
      * @zh
      * 选中此选项后，RichText 将阻止节点边界框中的所有输入事件（鼠标和触摸），从而防止输入事件穿透到底层节点。
      */
-    @tooltip('i18n:richtext.handleTouchEvent')
+    @editable
     get handleTouchEvent (): boolean {
         return this._handleTouchEvent;
     }
@@ -509,14 +501,11 @@ export class RichText extends Component {
     protected _labelHeight = 0;
     protected _layoutDirty = true;
     protected _lineOffsetX = 0;
-    protected _updateRichTextStatus: () => void;
+    protected declare _updateRichTextStatus: () => void;
     protected _labelChildrenNum = 0; // only ISegment
 
     constructor () {
         super();
-        if (EDITOR) {
-            this._userDefinedFont = null;
-        }
         this._updateRichTextStatus = this._updateRichText;
     }
 
@@ -1257,10 +1246,10 @@ this._measureText(styleIndex) as unknown as (s: string) => number,
             }
 
             // adjust y for label with outline
-            const outline = segment.node.getComponent(LabelOutline);
-            if (outline) {
+            const label = segment.node.getComponent(Label);
+            if (label && label.enableOutline) {
                 const position = segment.node.position.clone();
-                position.y -= outline.width;
+                position.y -= label.outlineWidth;
                 segment.node.position = position;
             }
         }
@@ -1306,13 +1295,13 @@ this._measureText(styleIndex) as unknown as (s: string) => number,
 
             label.isUnderline = !!textStyle.underline;
             if (textStyle.outline) {
-                let labelOutline = labelSeg.node.getComponent(LabelOutline);
-                if (!labelOutline) {
-                    labelOutline = labelSeg.node.addComponent(LabelOutline);
+                let label = labelSeg.node.getComponent(Label);
+                if (!label) {
+                    label = labelSeg.node.addComponent(Label);
                 }
-
-                labelOutline.color = this._convertLiteralColorValue(textStyle.outline.color);
-                labelOutline.width = textStyle.outline.width;
+                label.enableOutline = true;
+                label.outlineColor = this._convertLiteralColorValue(textStyle.outline.color);
+                label.outlineWidth = textStyle.outline.width;
             }
 
             label.fontSize = textStyle.size || this._fontSize;

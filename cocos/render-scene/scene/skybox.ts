@@ -38,7 +38,7 @@ import { Enum, cclegacy } from '../../core';
 let skybox_mesh: Mesh | null = null;
 let skybox_material: Material | null = null;
 
-export const EnvironmentLightingType = Enum({
+export enum EnvironmentLightingType {
     /**
      * @zh
      * 半球漫反射
@@ -46,7 +46,7 @@ export const EnvironmentLightingType = Enum({
      * hemisphere diffuse
      * @readonly
      */
-    HEMISPHERE_DIFFUSE: 0,
+    HEMISPHERE_DIFFUSE = 0,
     /**
      * @zh
      * 半球漫反射和环境反射
@@ -54,7 +54,7 @@ export const EnvironmentLightingType = Enum({
      * hemisphere diffuse and Environment reflection
      * @readonly
      */
-    AUTOGEN_HEMISPHERE_DIFFUSE_WITH_REFLECTION: 1,
+    AUTOGEN_HEMISPHERE_DIFFUSE_WITH_REFLECTION = 1,
     /**
      * @zh
      * 漫反射卷积图和环境反射
@@ -62,8 +62,9 @@ export const EnvironmentLightingType = Enum({
      * diffuse convolution map and environment reflection
      * @readonly
      */
-    DIFFUSEMAP_WITH_REFLECTION: 2,
-});
+    DIFFUSEMAP_WITH_REFLECTION = 2,
+}
+Enum(EnvironmentLightingType);
 
 /**
  * @en The skybox configuration of the render scene,
@@ -317,7 +318,7 @@ export class Skybox {
         this._default = builtinResMgr.get<TextureCube>('default-cube-texture');
 
         if (!this._model) {
-            this._model = cclegacy.director.root.createModel(cclegacy.renderer.scene.Model) as Model;
+            this._model = (cclegacy.director.root as Root).createModel(cclegacy.renderer.scene.Model as typeof Model);
             //The skybox material has added properties of 'environmentMap' that need local ubo
             //this._model._initLocalDescriptors = () => {};
             //this._model._initWorldBoundDescriptors = () => {};

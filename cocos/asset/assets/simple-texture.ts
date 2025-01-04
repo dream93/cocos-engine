@@ -26,7 +26,7 @@ import { ccclass } from 'cc.decorator';
 import { DEV } from 'internal:constants';
 import { TextureFlagBit, TextureUsageBit, API, Texture, TextureInfo, TextureViewInfo, Device, BufferTextureCopy } from '../../gfx';
 import { assertID, error, js, macro, cclegacy } from '../../core';
-import { Filter } from './asset-enum';
+import { TextureFilter } from './asset-enum';
 import { ImageAsset } from './image-asset';
 import { TextureBase } from './texture-base';
 import dependUtil from '../asset-manager/depend-util';
@@ -81,6 +81,10 @@ export class SimpleTexture extends TextureBase {
      */
     protected _maxLevel = 1000;
 
+    constructor () {
+        super();
+    }
+
     /**
      * @en The mipmap level of the texture.
      * @zh 贴图中的 Mipmap 层级数量。
@@ -119,8 +123,8 @@ export class SimpleTexture extends TextureBase {
      * @param firstLevel @en First level to be updated. @zh 更新指定层的 mipmap。
      * @param count @en Mipmap level count to be updated。 @zh 指定要更新层的数量。
      */
-    public updateMipmaps (firstLevel = 0, count?: number): void {
-
+    public updateMipmaps (firstLevel = 0, count: number | undefined = undefined): void {
+        // empty
     }
 
     /**
@@ -303,7 +307,7 @@ export class SimpleTexture extends TextureBase {
     protected _createTexture (device: Device): void {
         if (this._width === 0 || this._height === 0) { return; }
         let flags = TextureFlagBit.NONE;
-        if (this._mipFilter !== Filter.NONE && canGenerateMipmap(device, this._width, this._height)) {
+        if (this._mipFilter !== TextureFilter.NONE && canGenerateMipmap(device, this._width, this._height)) {
             this._mipmapLevel = getMipLevel(this._width, this._height);
             if (!this.isUsingOfflineMipmaps() && !this.isCompressed) {
                 flags = TextureFlagBit.GEN_MIPMAP;

@@ -267,6 +267,14 @@ Failed to set shading scale, pipelineSceneData is invalid.
 
 Setting orientation is not supported yet.
 
+### 1222
+
+Failed to initialize render pipeline.
+
+### 1223
+
+Custom pipeline and legacy pipeline are all culled. 
+
 ### 1300
 
 %s is not in the model pool and cannot be destroyed by destroyModel.
@@ -565,6 +573,10 @@ Private node's zIndex can't be set, it will keep cc.macro.MIN_ZINDEX as its valu
 <!-- DEPRECATED -->
 cc.Action is deprecated, please use cc.Tween instead
 
+### 1640
+
+Node %s(%s) has not attached to a scene.
+
 ### 1700
 
 <!-- DEPRECATED -->
@@ -643,7 +655,15 @@ should set resolutionPolicy
 
 ### 2300
 
-The touches is more than MAX_TOUCHES, nUnusedIndex = %s
+The touches is more than MAX_TOUCHES.
+
+### 2301
+
+Cannot create the same touch object.
+
+### 2302
+
+The touches is more than MAX_TOUCHES, release touch id %s.
 
 ### 2400
 
@@ -3218,6 +3238,14 @@ Can't getGFXSampler with out device
 
 [Physics][cannon.js]: sweep functions are not supported in cannon.js
 
+### 9642
+
+[Physics] PhysicsSystem initDefaultMaterial() Failed to load builtinMaterial.
+
+### 9643
+
+[Physics] Failed to load user customized default physics material: %s, will fallback to built-in default physics material
+
 ### 10001
 
 The sub-mesh contains %d vertices, which beyonds the capability (%d vertices most) of renderer of your platform.
@@ -3293,7 +3321,7 @@ Base pass cannot override states, please use pass instance instead.
 
 ### 12103
 
-Custom pipeline create shader %s failed. Please restart editor.
+Custom pipeline create shader %s failed. Please reimport all effects (Menu->Developer->Refresh All Effect) and restart creator.
 
 ### 12104
 
@@ -3309,11 +3337,19 @@ Cannot patch non-builtin macros.
 
 ### 12107
 
-Custom pipeline invalid render pass, program: %s. Please restart editor.
+Custom pipeline invalid render pass, program: %s. Please reimport all effects (Menu->Developer->Refresh All Effect) and restart creator.
 
 ### 12108
 
-Custom pipeline invalid render phase, program: %s. Please restart editor.
+Custom pipeline invalid render phase, program: %s. Please reimport all effects (Menu->Developer->Refresh All Effect) and restart creator.
+
+### 12109
+
+custom-pipeline module not available.
+
+### 12110
+
+MaterialPass passID in legacy pipeline is wrongly initialized.
 
 ### 13100
 
@@ -3440,3 +3476,415 @@ Skin material needs floating-point render target, please check ENABLE_FLOAT_OUTP
 ### 16304
 
 Skin material may need more accurate calculations, please select a head model of standard size, check the isGlobalStandardSkinObject option in the MeshRender component.
+
+### 16305
+
+failed to stop accelerometer
+
+### 16306
+
+The data must have positions field
+
+### 16307
+
+please change type to sprite_stencil first
+
+### 16308
+
+illegal index count!
+
+### 16309
+
+Unsupported Format, convert to WebGL internal format failed.
+
+### 16310
+
+Unsupported Format, convert to WebGL format failed.
+
+### 16311
+
+Unsupported GLType, convert to GL type failed.
+
+### 16312
+
+Unsupported GLType, convert to TypedArrayConstructor failed.
+
+### 16313
+
+Unsupported GLType, convert to Type failed.
+
+### 16314
+
+Unsupported GLType, get type failed.
+
+### 16315
+
+Unsupported BufferType, create buffer failed.
+
+### 16316
+
+Unsupported BufferType, update buffer failed.
+
+### 16317
+
+Unsupported TextureType, create texture failed.
+
+### 16318
+
+glCheckFramebufferStatus() - FRAMEBUFFER_INCOMPLETE_ATTACHMENT
+
+### 16319
+
+glCheckFramebufferStatus() - FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT
+
+### 16320
+
+glCheckFramebufferStatus() - FRAMEBUFFER_INCOMPLETE_DIMENSIONS
+
+### 16321
+
+glCheckFramebufferStatus() - FRAMEBUFFER_UNSUPPORTED
+
+### 16322
+
+Unsupported ShaderType.
+
+### 16323
+
+ %s in '%s' compilation failed.
+
+### 16324
+
+Shader source dump: %s
+
+### 16325
+
+Shader '%s' compilation succeeded.
+
+### 16326
+
+Failed to link shader: %s
+
+### 16327
+
+Unsupported GL texture type, copy buffer to texture failed.
+
+### 16328
+
+Command 'draw' must be recorded inside a render pass.
+
+### 16329
+
+Command 'updateBuffer' must be recorded outside a render pass.
+
+### 16330
+
+Command 'copyBufferToTexture' must be recorded outside a render pass.
+
+### 16331
+
+InputAssemblerInfo.vertexBuffers is null.
+
+### 16332
+
+Illegal index buffer stride.
+
+### 16333
+
+This device does not support WebGL.
+
+### 16334
+
+A Class already exists with the same %s : %s. %s
+
+### 16335
+
+"%s" has already been set as name or alias of another class.
+
+### 16336
+
+"%s" has already been set as id or alias of another class.
+
+### 16337
+
+can not support canvas rendering in 3D
+
+### 16338
+
+The '_$erialized' prop in MissingScript is missing. Please contact jare.
+
+### 16339
+
+Error props: ['%s']
+
+### 16340
+
+Error when checking MissingScript 5, %s
+
+### 16341
+
+The '_$erialized' prop of MissingScript is missing. Will force the raw data to be save.
+
+### 16342
+
+Error props: ['%s']. Please contact jare.
+
+### 16343
+
+Unable to stash previously serialized data. %s
+
+### 16344
+
+Error when checking MissingScript 6, %s
+
+### 16345
+
+uniform '%s' must have a count
+
+### 16346
+
+Invalid GFX API!
+
+### 16347
+
+The number of mipmaps of each face is different.
+
+### 16348
+
+builtin UBO '%s' not available!
+
+### 16349
+
+builtin samplerTexture '%s' not available!
+
+### 16350
+
+The asset %s is missing!
+
+### 16351
+
+the native asset of %s is missing!
+
+### 16352
+
+The asset %s is invalid for some reason, detail message: %s, stack: %s
+
+### 16353
+
+Can't find letter in this bitmap-font
+
+### 16354
+
+Can't find letter definition in texture atlas %s for letter:%s
+
+### 16355
+
+Can't find letter definition in font family %s for letter: %s
+
+### 16356
+
+wrong format of version when compare version
+
+### 16357
+
+should use Vec3.multiply for vector * vector operation
+
+### 16358
+
+should use Vec3.scale for vector * scalar operation
+
+### 16359
+
+should use Vec2.multiply for vector * vector operation
+
+### 16360
+
+should use Vec2.scale for vector * scalar operation
+
+### 16361
+
+should use Vec4.multiply for vector * vector operation
+
+### 16362
+
+should use Vec4.scale for vector * scalar operation
+
+### 16363
+
+Unable to get device
+
+### 16364
+
+bitNum can't be undefined
+
+### 16365
+
+maximum layers reached.
+
+### 16366
+
+do not change buildin layers.
+
+### 16367
+
+name can't be undefined
+
+### 16368
+
+Unable to access unknown layer.
+
+### 16369
+
+unknown define type '%s'
+
+### 16370
+
+Shaders in material asset '%s' cannot be modified at runtime, please instantiate the material first.
+
+### 16371
+
+Pipeline states in material asset '%s' cannot be modified at runtime, please instantiate the material first.
+
+### 16372
+
+illegal pass index: %s.
+
+### 16373
+
+illegal property name: %s.
+
+### 16374
+
+Unexpected attribute!
+
+### 16375
+
+Unexpected: failed to create morph texture?
+
+### 16376
+
+The fnt config is not exists!
+
+### 16377
+
+SpriteAtlas is null.
+
+### 16378
+
+node '%s' doesn't have any renderable component
+
+### 16379
+
+cannot resize buffer views!
+
+### 16380
+
+cannot update through buffer views!
+
+### 16381
+
+Profiler._stats is deprecated, please use Profiler.stats instead.
+
+### 16382
+
+reverse: could not reverse a non-relative action
+
+### 16383
+
+Need 'clone' for custom prop '%s'
+
+### 16384
+
+Need 'add' for custom prop '%s'
+
+### 16385
+
+Need 'sub' for custom prop '%s' in reverse mode
+
+### 16386
+
+TweenAction: '%s' can't be converted to number
+
+### 16387
+
+Wrong return type for 'progress', number or string needed
+
+### 16388
+
+reverse: current tween could not be reversed, empty actions
+
+### 16389
+
+pause: tween wasn't started, can't pause
+
+### 16390
+
+resume: tween wasn't started, can't resume
+
+### 16391
+
+reverse: could not find action id %s
+
+### 16392
+
+Please set target to tween first
+
+### 16393
+
+start: no actions in Tween
+
+### 16394
+
+repeatForever: the last action is not ActionInterval
+
+### 16395
+
+reverseTime: the last action is not ActionInterval
+
+### 16396
+
+tweenUtil' is deprecated, please use 'tween' instead
+
+### 16397
+
+ProgressBar FILLED mode only works when barSprite's Type is FILLED!
+
+### 16398
+
+ProgressBar non-FILLED mode only works when barSprite's Type is non-FILLED!
+
+### 16399
+
+CopyTextureToBuffers: not supported texture target.
+
+### 16400
+
+Limit values to be greater than 0
+
+### 16401
+
+beginRenderPass: Only primary command buffer is supported.
+
+### 16402
+
+execute is not supported.
+
+### 16403
+
+GPU memory alias is not supported
+
+### 16404
+
+Block '%s' does not bound
+
+### 16405
+
+This device does not support WebGL2
+
+### 16406
+
+Can't find the spriteFrame of tilesets %s
+
+### 16407
+
+Spline error: invalid mode

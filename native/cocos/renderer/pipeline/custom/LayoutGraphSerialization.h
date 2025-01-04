@@ -1,7 +1,7 @@
-/****************************************************************************
- Copyright (c) 2021-2023 Xiamen Yaji Software Co., Ltd.
+/*
+ Copyright (c) 2021-2024 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
-****************************************************************************/
+*/
 
 /**
  * ========================= !DO NOT CHANGE THE FOLLOWING SECTION MANUALLY! =========================
@@ -34,6 +34,24 @@
 namespace cc {
 
 namespace render {
+
+void save(OutputArchive& ar, const Descriptor& v);
+void load(InputArchive& ar, Descriptor& v);
+
+void save(OutputArchive& ar, const DescriptorBlock& v);
+void load(InputArchive& ar, DescriptorBlock& v);
+
+void save(OutputArchive& ar, const DescriptorBlockFlattened& v);
+void load(InputArchive& ar, DescriptorBlockFlattened& v);
+
+void save(OutputArchive& ar, const DescriptorBlockIndex& v);
+void load(InputArchive& ar, DescriptorBlockIndex& v);
+
+void save(OutputArchive& ar, const DescriptorGroupBlockIndex& v);
+void load(InputArchive& ar, DescriptorGroupBlockIndex& v);
+
+void save(OutputArchive& ar, const DescriptorGroupBlock& v);
+void load(InputArchive& ar, DescriptorGroupBlock& v);
 
 void save(OutputArchive& ar, const DescriptorDB& v);
 void load(InputArchive& ar, DescriptorDB& v);
@@ -64,6 +82,15 @@ void load(InputArchive& ar, DescriptorSetLayoutData& v);
 
 void save(OutputArchive& ar, const DescriptorSetData& v);
 void load(InputArchive& ar, DescriptorSetData& v);
+
+void save(OutputArchive& ar, const DescriptorGroupBlockData& v);
+void load(InputArchive& ar, DescriptorGroupBlockData& v);
+
+void save(OutputArchive& ar, const DescriptorGroupLayoutData& v);
+void load(InputArchive& ar, DescriptorGroupLayoutData& v);
+
+void save(OutputArchive& ar, const DescriptorGroupData& v);
+void load(InputArchive& ar, DescriptorGroupData& v);
 
 void save(OutputArchive& ar, const PipelineLayoutData& v);
 void load(InputArchive& ar, PipelineLayoutData& v);

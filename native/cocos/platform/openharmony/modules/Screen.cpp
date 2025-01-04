@@ -53,13 +53,13 @@ Screen::Orientation Screen::getDeviceOrientation() const {
         value = dpi.As<Napi::Number>().Int32Value();
     }
 
-    if(value == 0) {
+    if (value == 0) {
         return Orientation::PORTRAIT;
-    } else if(value == 1) {
+    } else if (value == 1) {
         return Orientation::LANDSCAPE_LEFT;
-    } else if(value == 2) {
+    } else if (value == 2) {
         return Orientation::PORTRAIT_UPSIDE_DOWN;
-    } else if(value == 3) {
+    } else if (value == 3) {
         return Orientation::LANDSCAPE_RIGHT;
     }
     CC_ASSERT(false);
@@ -88,6 +88,5 @@ void Screen::setDisplayStats(bool isShow) {
     sprintf(commandBuf, isShow ? "cc.profiler.showStats();" : "cc.profiler.hideStats();");
     se::ScriptEngine::getInstance()->evalString(commandBuf);
 }
-
 
 } // namespace cc

@@ -16,6 +16,9 @@ cc_set_if_undefined(CC_DEBUG_FORCE           OFF)
 cc_set_if_undefined(USE_SE_V8                ON)
 cc_set_if_undefined(USE_SE_SM                OFF)
 cc_set_if_undefined(USE_SE_NAPI              OFF)
+if(OPENHARMONY)
+    cc_set_if_undefined(USE_SE_JSVM          OFF)
+endif()
 cc_set_if_undefined(USE_V8_DEBUGGER          ON)
 cc_set_if_undefined(USE_V8_DEBUGGER_FORCE    OFF)
 cc_set_if_undefined(USE_SOCKET               ON)
@@ -44,7 +47,8 @@ cc_set_if_undefined(USE_GEOMETRY_RENDERER    ON)
 cc_set_if_undefined(USE_WEBP                 ON)
 cc_set_if_undefined(NET_MODE                  0) # 0 is client
 cc_set_if_undefined(USE_REMOTE_LOG           OFF)
-
+cc_set_if_undefined(USE_ADPF                 OFF)
+cc_set_if_undefined(USE_GOOGLE_BILLING  OFF)
 
 if(ANDROID AND NOT DEFINED USE_CCACHE)
     if("$ENV{COCOS_USE_CCACHE}" STREQUAL "1")
@@ -344,21 +348,32 @@ NO_WERROR   cocos/audio/common/utils/primitives.cpp
             cocos/audio/android/OpenSLHelper.h
             cocos/audio/android/PcmAudioPlayer.cpp
             cocos/audio/android/PcmAudioPlayer.h
-            cocos/audio/android/PcmAudioService.cpp
-            cocos/audio/android/PcmAudioService.h
             cocos/audio/android/PcmBufferProvider.cpp
             cocos/audio/android/PcmBufferProvider.h
             cocos/audio/android/PcmData.cpp
             cocos/audio/android/PcmData.h
             cocos/audio/android/Track.cpp
             cocos/audio/android/Track.h
-            cocos/audio/android/UrlAudioPlayer.cpp
-            cocos/audio/android/UrlAudioPlayer.h
             cocos/audio/android/utils/Compat.h
             cocos/audio/android/utils/Errors.h
             cocos/audio/android/utils/Utils.cpp
             cocos/audio/android/utils/Utils.h
         )
+        if(ANDROID) 
+            cocos_source_files(
+                cocos/audio/android/PcmAudioService.cpp
+                cocos/audio/android/PcmAudioService.h
+                cocos/audio/android/UrlAudioPlayer.cpp
+                cocos/audio/android/UrlAudioPlayer.h
+            )
+        elseif(OPENHARMONY)
+            cocos_source_files(                
+                cocos/audio/openharmony/PcmAudioService.cpp
+                cocos/audio/openharmony/PcmAudioService.h
+                cocos/audio/openharmony/UrlAudioPlayer.cpp
+                cocos/audio/openharmony/UrlAudioPlayer.h
+            )
+        endif()
      elseif(OHOS)
         cocos_source_files(
             cocos/audio/common/utils/tinysndfile.cpp
@@ -551,14 +566,14 @@ elseif(ANDROID)
         cocos/platform/android/AndroidPlatform.cpp
         cocos/platform/android/AndroidPlatform.h
         cocos/platform/android/AndroidKeyCodes.cpp
-        cocos/platform/android/adpf_manager.h
-        cocos/platform/android/adpf_manager.cpp
     )
 elseif(OPENHARMONY)
     cocos_source_files(
         cocos/platform/openharmony/napi/NapiHelper.cpp
         cocos/platform/openharmony/napi/NapiHelper.h
-
+        cocos/platform/openharmony/napi/NapiValueConverter.cpp
+        cocos/platform/openharmony/napi/NapiValueConverter.h
+        cocos/platform/openharmony/napi/native_common.h
         cocos/platform/openharmony/WorkerMessageQueue.cpp
         cocos/platform/openharmony/WorkerMessageQueue.h
         cocos/platform/openharmony/OpenHarmonyPlatform.cpp
@@ -582,6 +597,13 @@ elseif(IOS)
         cocos/platform/ios/IOSPlatform.h
         cocos/platform/ios/AppDelegateBridge.mm
         cocos/platform/ios/AppDelegateBridge.h
+    )
+endif()
+
+if(USE_ADPF) 
+    cocos_source_files(
+        cocos/platform/android/adpf_manager.h
+        cocos/platform/android/adpf_manager.cpp
     )
 endif()
 
@@ -738,6 +760,39 @@ elseif(ANDROID OR OHOS)
     endif()
 endif()
 
+if(USE_GOOGLE_BILLING)
+    cocos_source_files(
+        vendor/google/billing/GoogleBilling.cpp
+        vendor/google/billing/GoogleBilling.h
+        vendor/google/billing/GoogleBillingManager.h
+        vendor/google/billing/GoogleBillingHelper.cpp
+        vendor/google/billing/GoogleBillingHelper.h
+        vendor/google/billing/JniBilling.cpp
+        vendor/google/billing/JniBilling.h
+
+        vendor/google/billing/build-params/AcknowledgePurchaseParams.h
+        vendor/google/billing/build-params/BillingFlowParams.h
+        vendor/google/billing/build-params/ConsumeParams.h
+        vendor/google/billing/build-params/GetBillingConfigParams.h
+        vendor/google/billing/build-params/InAppMessageParams.h
+        vendor/google/billing/build-params/PendingPurchasesParams.h
+        vendor/google/billing/build-params/QueryProductDetailsParams.h
+        vendor/google/billing/build-params/QueryPurchasesParams.h
+        
+        vendor/google/billing/result-values/AccountIdentifiers.h
+        vendor/google/billing/result-values/AlternativeBillingOnlyReportingDetails.h
+        vendor/google/billing/result-values/BillingConfig.h
+        vendor/google/billing/result-values/BillingResult.h
+        vendor/google/billing/result-values/ExternalOfferReportingDetails.h
+        vendor/google/billing/result-values/InAppMessageResult.h
+        vendor/google/billing/result-values/Purchase.h
+        vendor/google/billing/result-values/Purchase.cpp
+        vendor/google/billing/result-values/ProductDetails.h
+        vendor/google/billing/result-values/ProductDetails.cpp
+        vendor/google/billing/result-values/UserChoiceDetails.h
+    )
+endif()
+
 if(ANDROID)
     cocos_source_files(
         cocos/platform/android/modules/Screen.cpp
@@ -745,6 +800,7 @@ if(ANDROID)
         cocos/platform/android/modules/System.cpp
         cocos/platform/android/modules/System.h
     )
+
 elseif(OPENHARMONY)
     # Because there will be a definition of OHOS in harmonyos, it is necessary to define the macro of OPENHARMONY.
 elseif(OHOS)
@@ -1042,6 +1098,9 @@ set(SWIG_OUTPUT_ROOT ${CMAKE_CURRENT_BINARY_DIR}/generated)
 set(SWIG_OUTPUT ${SWIG_OUTPUT_ROOT}/cocos/bindings/auto)
 cc_gen_swig_files(${CMAKE_CURRENT_LIST_DIR}/tools/swig-config ${SWIG_OUTPUT})
 
+if(USE_GOOGLE_BILLING) 
+    cc_gen_swig_files(${CMAKE_CURRENT_LIST_DIR}/tools/swig-config/android ${SWIG_OUTPUT})
+endif()
 
 ##### platform
 cocos_source_files(
@@ -1162,6 +1221,10 @@ elseif(LINUX)
     )
 endif()
 
+if(USE_GOOGLE_BILLING)
+    list(APPEND CC_JNI_SRC_FILES ${CWD}/cocos/platform/java/jni/JniGoogleBillingHandler.cpp)
+endif()
+
 ##### renderer
 cocos_source_files(
                  cocos/renderer/core/PassUtils.h
@@ -1212,6 +1275,7 @@ cocos_source_files(
                  cocos/renderer/gfx-base/GFXQueryPool.h
                  cocos/renderer/gfx-base/GFXRenderPass.cpp
                  cocos/renderer/gfx-base/GFXRenderPass.h
+                 cocos/renderer/gfx-base/GFXSamplerUtils.h
                  cocos/renderer/gfx-base/GFXShader.cpp
                  cocos/renderer/gfx-base/GFXShader.h
                  cocos/renderer/gfx-base/GFXSwapchain.cpp
@@ -2198,6 +2262,13 @@ if(USE_WEBVIEW)
     )
 endif()
 
+if(USE_GOOGLE_BILLING)
+    cocos_source_files(
+        NO_WERROR   NO_UBUILD   ${SWIG_OUTPUT}/jsb_google_billing_auto.cpp
+                                ${SWIG_OUTPUT}/jsb_google_billing_auto.h
+    )
+endif()
+
 if(USE_XR_REMOTE_PREVIEW)
     cocos_source_files(
             NO_WERROR    cocos/xr/XRRemotePreviewManager.h
@@ -2348,6 +2419,7 @@ if(USE_MIDDLEWARE)
                                      cocos/editor-support/spine/spine.h
             NO_WERROR                cocos/editor-support/spine/SpineObject.cpp
                                      cocos/editor-support/spine/SpineObject.h
+                                     cocos/editor-support/spine/SpineString.cpp
                                      cocos/editor-support/spine/SpineString.h
             NO_WERROR                cocos/editor-support/spine/TextureLoader.cpp
                                      cocos/editor-support/spine/TextureLoader.h
@@ -2541,7 +2613,6 @@ cocos_source_files(
             cocos/bindings/manual/jsb_xmlhttprequest.h
             cocos/bindings/manual/jsb_pipeline_manual.h
             cocos/bindings/manual/jsb_pipeline_manual.cpp
-            cocos/bindings/manual/jsb_adpf.cpp
 )
 if(USE_AUDIO)
     cocos_source_files(
@@ -2565,6 +2636,12 @@ if(USE_WEBSOCKET_SERVER)
     )
 endif()
 
+if(USE_ADPF)
+    cocos_source_files(
+        cocos/bindings/manual/jsb_adpf.cpp
+    )
+endif()
+
 if(ANDROID)
     cocos_source_files(
                     cocos/bindings/manual/jsb_platform_android.cpp
@@ -2574,6 +2651,8 @@ if(ANDROID)
 elseif(OPENHARMONY)
     cocos_source_files(
         cocos/bindings/manual/jsb_platform_openharmony.cpp
+        cocos/bindings/manual/JavaScriptArkTsBridge.cpp
+        cocos/bindings/manual/JavaScriptArkTsBridge.h
     )
 elseif(OHOS)
     cocos_source_files(
@@ -2691,6 +2770,25 @@ if(USE_SE_NAPI)
                      cocos/bindings/jswrapper/napi/SeApi.h
         NO_WERROR    cocos/bindings/jswrapper/napi/Utils.cpp
                      cocos/bindings/jswrapper/napi/Utils.h
+    )
+endif()
+
+
+
+if(OPENHARMONY AND USE_SE_JSVM)
+    cocos_source_files(MODULE ccbindings
+        cocos/bindings/jswrapper/jsvm/Class.cpp
+        cocos/bindings/jswrapper/jsvm/Class.h
+        cocos/bindings/jswrapper/jsvm/HelperMacros.cpp
+        cocos/bindings/jswrapper/jsvm/HelperMacros.h
+        cocos/bindings/jswrapper/jsvm/Object.cpp
+        cocos/bindings/jswrapper/jsvm/Object.h
+        cocos/bindings/jswrapper/jsvm/ScriptEngine.cpp
+        cocos/bindings/jswrapper/jsvm/ScriptEngine.h
+        cocos/bindings/jswrapper/jsvm/SeApi.h
+        cocos/bindings/jswrapper/jsvm/Utils.cpp
+        cocos/bindings/jswrapper/jsvm/Utils.h
+        cocos/bindings/jswrapper/jsvm/CommonHeader.h
     )
 endif()
 
@@ -3073,7 +3171,10 @@ function(cc_apply_definations target)
         $<$<BOOL:${USE_SE_SM}>:SCRIPT_ENGINE_TYPE=1>
         $<$<BOOL:${USE_SE_V8}>:SCRIPT_ENGINE_TYPE=2>
         $<$<BOOL:${USE_SE_NAPI}>:SCRIPT_ENGINE_TYPE=5>
+        $<$<BOOL:${USE_SE_JSVM}>:SCRIPT_ENGINE_TYPE=6>
         $<$<OR:$<CONFIG:Debug>,$<BOOL:${CC_DEBUG_FORCE}>>:CC_DEBUG=1>
+        $<IF:$<BOOL:${USE_ADPF}>,CC_USE_ADPF=1,CC_USE_ADPF=0>
+        $<IF:$<BOOL:${USE_GOOGLE_BILLING}>,CC_USE_GOOGLE_BILLING=1,CC_USE_GOOGLE_BILLING=0>
     )
 endfunction()
 
@@ -3266,14 +3367,55 @@ if(OPENHARMONY)
 
     find_library( hilog-lib
                 hilog_ndk.z )
-
-    find_library( libace-lib
-                libace_ndk.z )
-
-    target_link_libraries(${ENGINE_NAME} PUBLIC
-        ${EGL-lib} ${GLESv3-lib} ${hilog-lib} libace_napi.z.so libace_ndk.z.so libz.so libuv.so libnative_drawing.so librawfile.z.so libOpenSLES.so
+    
+    find_library( # Sets the name of the path variable.
+                libace-lib
+                # Specifies the name of the NDK library that
+                # you want CMake to locate.
+                ace_ndk.z )
+  find_library( # Sets the name of the path variable.
+                libnapi-lib
+                # Specifies the name of the NDK library that
+                # you want CMake to locate.
+                ace_napi.z )
+  find_library( # Sets the name of the path variable.
+                libuv-lib
+                # Specifies the name of the NDK library that
+                # you want CMake to locate.
+                uv )
+  find_library( # Sets the name of the path variable.
+                rawfile-lib
+                # Specifies the name of the NDK library that
+                # you want CMake to locate.
+                rawfile.z )
+    set(LIBS
+        ${EGL-lib}
+        ${GLESv3-lib}
+        ${hilog-lib}
+        ${libace-lib}
+        ${libnapi-lib}
+        ${libuv-lib}
+        ${rawfile-lib}
+        libnative_drawing.so
+        libc++.a
+        libOpenSLES.so
+        libohaudio.so
+        libavplayer.so
+        libnative_window.so
+        libnative_buffer.so
+        libbundle_ndk.z.so
+        libace_napi.z.so 
+        libace_ndk.z.so 
+        libz.so 
+        librawfile.z.so
         ${CC_EXTERNAL_LIBS}
     )
+    if(USE_SE_JSVM)
+        list(APPEND LIBS libjsvm.so)
+    endif()
+
+    target_link_libraries(${ENGINE_NAME} PUBLIC ${LIBS})
+
 endif()
 
 if(APPLE)

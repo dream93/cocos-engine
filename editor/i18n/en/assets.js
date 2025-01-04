@@ -8,6 +8,20 @@ module.exports = {
     inspector: {
         cloneToEdit: 'Clone it. Use and go into edit.',
         cloneToDirectoryIllegal: 'Please limit the saved path to the current project assets path',
+        preview: {
+            header: 'Preview',
+        },
+        spine: {
+            skin: 'Skin',
+            animation: 'Animation',
+            loop: 'Loop',
+            timeScale: 'Rate',
+            premultipliedAlpha: 'Premultiplied Alpha',
+            useTint: 'Use Tint',
+            debugSlots: 'Debug Slots',
+            debugBones: 'Debug Bones',
+            debugMesh: 'Debug Mesh',
+        },
     },
 
     assets: {
@@ -493,6 +507,10 @@ module.exports = {
             assetMessage: "${assetName} is modified, it's data has not been saved. Do you want to save it?",
             save: 'Save',
             abort: 'Discard',
+        },
+        spine_data: {
+            atlas: 'Atlas',
+            atlas_warn: 'Failed to set up the atlas and requires a text file with the .atlas suffix',
         },
     },
 

@@ -26,27 +26,31 @@ import { ccclass, editable, serializable, type } from 'cc.decorator';
 import { DEV, DEBUG, EDITOR, EDITOR_NOT_IN_PREVIEW } from 'internal:constants';
 import { Layers } from './layers';
 import { NodeUIProperties } from './node-ui-properties';
-import { legacyCC } from '../core/global-exports';
+import { cclegacy } from '../core/global-exports';
 import { nodePolyfill } from './node-dev';
 import { ISchedulable } from '../core/scheduler';
-import { approx, EPSILON, Mat3, Mat4, Quat, Vec3 } from '../core/math';
+import { approx, EPSILON, Mat3, mat4, Mat4, quat, Quat, v3, Vec3 } from '../core/math';
 import { MobilityMode, NodeSpace, TransformBit } from './node-enum';
 import { CustomSerializable, editorExtrasTag, SerializationContext, SerializationOutput, serializeTag } from '../core/data';
 import { errorID, warnID, error, log, getError } from '../core/platform/debug';
 import { Component } from './component';
 import { property } from '../core/data/decorators/property';
 import { CCObject, js } from '../core';
-import type { Scene } from './scene';
 import { PrefabInfo, PrefabInstance } from './prefab/prefab-info';
 import { NodeEventType } from './node-event';
 import { Event } from '../input/types';
-import type { NodeEventProcessor } from './node-event-processor';
+import { DispatcherEventType, NodeEventProcessor } from './node-event-processor';
+
+import type { Scene } from './scene';
+import type { Director } from '../game/director';
+import type { Game } from '../game/game';
 
 const Destroying = CCObject.Flags.Destroying;
 const DontDestroy = CCObject.Flags.DontDestroy;
 const Deactivating = CCObject.Flags.Deactivating;
 
 export const TRANSFORM_ON = 1 << 0;
+const ACTIVE_ON = 1 << 1;
 
 const idGenerator = new js.IDGenerator('Node');
 
@@ -62,16 +66,15 @@ function getConstructor<T> (typeOrClassName: string | Constructor<T> | Abstracte
     return typeOrClassName;
 }
 
-const v3_a = new Vec3();
-const v3_b = new Vec3();
-const q_a = new Quat();
-const q_b = new Quat();
-const qt_1 = new Quat();
+const v3_a = v3();
+const v3_b = v3();
+const q_a = quat();
+const q_b = quat();
+const qt_1 = quat();
 const m3_1 = new Mat3();
-const m3_scaling = new Mat3();
-const m4_1 = new Mat4();
-const m4_2 = new Mat4();
-const dirtyNodes: any[] = [];
+const m4_1 = mat4();
+const m4_2 = mat4();
+const dirtyNodes: Node[] = [];
 
 const reserveContentsForAllSyncablePrefabTag = Symbol('ReserveContentsForAllSyncablePrefab');
 let globalFlagChangeVersion = 0;
@@ -191,7 +194,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
             if (parent) {
                 const couldActiveInScene = parent._activeInHierarchy;
                 if (couldActiveInScene) {
-                    legacyCC.director._nodeActivator.activateNode(this, isActive);
+                    (cclegacy.director as Director)._nodeActivator.activateNode(this, isActive);
                 }
             }
         }
@@ -382,9 +385,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
     public set id (v: string) { this._id = v; }
     protected _id: string = idGenerator.getNewId();
 
-    protected _name: string;
-
-    protected _eventProcessor: NodeEventProcessor = new (legacyCC.NodeEventProcessor as typeof NodeEventProcessor)(this);
+    protected _eventProcessor: NodeEventProcessor = new NodeEventProcessor(this);
     protected _eventMask = 0;
 
     protected _siblingIndex = 0;
@@ -413,7 +414,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
      */
     protected _updateScene (): void {
         if (this._parent == null) {
-            error('Node %s(%s) has not attached to a scene.', this.name, this.uuid);
+            errorID(1640, this.name, this.uuid);
         } else {
             this._scene = this._parent._scene;
         }
@@ -632,7 +633,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
             return;
         }
         const siblings = this._parent._children;
-        index = index !== -1 ? index : siblings.length - 1;
+        index = index >= 0 ? index : siblings.length + index;
         const oldIndex = siblings.indexOf(this);
         if (index !== oldIndex) {
             siblings.splice(oldIndex, 1);
@@ -976,7 +977,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
         if (typeof typeOrClassName === 'string') {
             constructor = js.getClassByName(typeOrClassName) as Constructor<T> | undefined;
             if (!constructor) {
-                if (legacyCC._RF.peek()) {
+                if (cclegacy._RF.peek()) {
                     errorID(3808, typeOrClassName);
                 }
                 throw TypeError(getError(3807, typeOrClassName));
@@ -993,7 +994,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
         if (typeof constructor !== 'function') {
             throw TypeError(getError(3809));
         }
-        if (!js.isChildClassOf(constructor, legacyCC.Component)) {
+        if (!js.isChildClassOf(constructor, cclegacy.Component)) {
             throw TypeError(getError(3810));
         }
 
@@ -1040,7 +1041,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
         }
         this.emit(NodeEventType.COMPONENT_ADDED, component);
         if (this._activeInHierarchy) {
-            legacyCC.director._nodeActivator.activateComp(component);
+            (cclegacy.director as Director)._nodeActivator.activateComp(component);
         }
         if (EDITOR_NOT_IN_PREVIEW) {
             component.resetInEditor?.();
@@ -1148,6 +1149,9 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
         case NodeEventType.TRANSFORM_CHANGED:
             this._eventMask |= TRANSFORM_ON;
             break;
+        case NodeEventType.ACTIVE_CHANGED:
+            this._eventMask |= ACTIVE_ON;
+            break;
         default:
             break;
         }
@@ -1179,6 +1183,9 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
             switch (type) {
             case NodeEventType.TRANSFORM_CHANGED:
                 this._eventMask &= ~TRANSFORM_ON;
+                break;
+            case NodeEventType.ACTIVE_CHANGED:
+                this._eventMask &= ~ACTIVE_ON;
                 break;
             default:
                 break;
@@ -1258,6 +1265,10 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
         if ((this._eventMask & TRANSFORM_ON) && !this._eventProcessor.hasEventListener(NodeEventType.TRANSFORM_CHANGED)) {
             this._eventMask &= ~TRANSFORM_ON;
         }
+
+        if ((this._eventMask & ACTIVE_ON) && !this._eventProcessor.hasEventListener(NodeEventType.ACTIVE_CHANGED)) {
+            this._eventMask &= ~ACTIVE_ON;
+        }
     }
 
     public destroy (): boolean {
@@ -1321,7 +1332,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
 
     protected _instantiate (cloned?: Node | null, isSyncedNode: boolean = false): Node {
         if (!cloned) {
-            cloned = legacyCC.instantiate._clone(this, this) as Node;
+            cloned = cclegacy.instantiate._clone(this, this) as Node;
         }
 
         const newPrefabInfo = cloned._prefab;
@@ -1345,15 +1356,15 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
 
     protected _onHierarchyChangedBase (oldParent: this | null): void {
         const newParent = this._parent;
-        if (this._persistNode && !(newParent instanceof legacyCC.Scene)) {
-            legacyCC.game.removePersistRootNode(this);
+        if (this._persistNode && !(newParent instanceof cclegacy.Scene)) {
+            cclegacy.game.removePersistRootNode(this);
             if (EDITOR) {
                 warnID(1623);
             }
         }
 
         if (EDITOR) {
-            const scene = legacyCC.director.getScene() as this | null;
+            const scene = (cclegacy.director as Director).getScene() as this | null;
             const inCurrentSceneBefore = oldParent && oldParent.isChildOf(scene);
             const inCurrentSceneNow = newParent && newParent.isChildOf(scene);
             if (!inCurrentSceneBefore && inCurrentSceneNow) {
@@ -1374,7 +1385,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
 
         const shouldActiveNow = this._active && !!(newParent && newParent._activeInHierarchy);
         if (this._activeInHierarchy !== shouldActiveNow) {
-            legacyCC.director._nodeActivator.activateNode(this, shouldActiveNow);
+            (cclegacy.director as Director)._nodeActivator.activateNode(this, shouldActiveNow);
         }
     }
 
@@ -1393,7 +1404,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
 
         // remove from persist
         if (this._persistNode) {
-            legacyCC.game.removePersistRootNode(this);
+            (cclegacy.game as Game).removePersistRootNode(this);
         }
 
         if (!destroyByParent) {
@@ -1538,8 +1549,8 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
     protected _hasChangedFlags = 0;
 
     constructor (name?: string) {
+        if (name === undefined) name = 'New Node';
         super(name);
-        this._name = name !== undefined ? name : 'New Node';
 
         this._pos = new Vec3();
         this._rot = new Quat();
@@ -1552,7 +1563,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
      * @zh 指定对象是否是普通的节点？如果传入 [[Scene]] 会返回 false。
      */
     public static isNode (obj: unknown): obj is Node {
-        return obj instanceof Node && (obj.constructor === Node || !(obj instanceof legacyCC.Scene));
+        return obj instanceof Node && (obj.constructor === Node || !(obj instanceof cclegacy.Scene));
     }
 
     protected _onPreDestroy (): boolean {
@@ -1622,14 +1633,10 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
      */
     @editable
     get angle (): number {
-        return this._euler.z;
+        return this.eulerAngles.z;
     }
 
     set angle (val: number) {
-        if (this._euler.equals(v3_a.set(0, 0, val))) {
-            return;
-        }
-
         Vec3.set(this._euler, 0, 0, val);
         Quat.fromAngleZ(this._lrot, val);
         this._eulerDirty = false;
@@ -1756,17 +1763,19 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
      */
     @editable
     set layer (l: number) {
-        if (this._layer === l) {
+        const self = this;
+        if (self._layer === l) {
             return;
         }
 
-        this._layer = l;
+        self._layer = l;
 
-        if (this._uiProps && this._uiProps.uiComp) {
-            this._uiProps.uiComp.setNodeDirty();
-            this._uiProps.uiComp.markForUpdateRenderData();
+        const uiComp = self._uiProps && self._uiProps.uiComp;
+        if (uiComp) {
+            uiComp.setNodeDirty();
+            uiComp.markForUpdateRenderData();
         }
-        this.emit(NodeEventType.LAYER_CHANGED, this._layer);
+        self.emit(NodeEventType.LAYER_CHANGED, self._layer);
     }
 
     get layer (): number {
@@ -1900,6 +1909,12 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
      * @deprecated since v3.5.0, this is an engine private interface that will be removed in the future.
      */
     public _onBatchCreated (dontSyncChildPrefab: boolean): void {
+        if (this._eventMask & ACTIVE_ON) {
+            if (!this._activeInHierarchy) {
+                this.emit(NodeEventType.ACTIVE_CHANGED, this, false);
+            }
+        }
+
         this.hasChangedFlags = TransformBit.TRS;
         const len = this._children.length;
         for (let i = 0; i < len; ++i) {
@@ -1920,18 +1935,39 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
      * @deprecated since v3.5.0, this is an engine private interface that will be removed in the future.
      */
     public _onPostActivated (active: boolean): void {
+        const self = this;
+        if (self._eventMask & ACTIVE_ON) {
+            self.emit(NodeEventType.ACTIVE_CHANGED, self, active);
+        }
+
+        const eventProcessor = this._eventProcessor;
+        // If the 'enable' state of event processor is equal to the node's active state, we should mark the list dirty for the global callback invoker
+        // which will trigger re-sorting logic in PointerEventDispatcher._sortPointerEventProcessorList.
+        // Otherwise, pointerEventProcessorList will not be sorted correctly since the 'enable' state may not change and the following
+        // eventProcessor.setEnabled(active) may return directly.
+        // Think of the case:
+        //   this.node.pauseSystemEvents(true);  // child's eventProcessor will be disabled.
+        //   child.active = false;               // child's active state is false and its eventProcessor keeps disabled.
+        //   this.node.resumeSystemEvents(true); // child's eventProcessor will be enabled, MARK_LIST_DIRTY will be emitted,
+        //                                          but the node is not active, so the resorting logic will take the child to the end of the list,
+        //                                          see PointerEventDispatcher._sortByPriority.
+        //   child.active = true;                // child's eventProcessor has already been enabled, eventProcessor.setEnabled(true) will do nothing.
+        if (eventProcessor.isEnabled === active) {
+            NodeEventProcessor.callbacksInvoker.emit(DispatcherEventType.MARK_LIST_DIRTY);
+        }
+
+        eventProcessor.setEnabled(active);
+
         if (active) { // activated
-            this._eventProcessor.setEnabled(true);
             // in case transform updated during deactivated period
-            this.invalidateChildren(TransformBit.TRS);
+            self.invalidateChildren(TransformBit.TRS);
             // ALL Node renderData dirty flag will set on here
-            if (this._uiProps && this._uiProps.uiComp) {
-                this._uiProps.uiComp.setNodeDirty();
-                this._uiProps.uiComp.setTextureDirty(); // for dynamic atlas
-                this._uiProps.uiComp.markForUpdateRenderData();
+            const uiComp = self._uiProps && self._uiProps.uiComp;
+            if (uiComp) {
+                uiComp.setNodeDirty();
+                uiComp.setTextureDirty(); // for dynamic atlas
+                uiComp.markForUpdateRenderData();
             }
-        } else { // deactivated
-            this._eventProcessor.setEnabled(false);
         }
     }
 
@@ -2022,8 +2058,8 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
         let i = 0;
         let j = 0;
         let l = 0;
-        let cur: this;
-        let children: this[];
+        let cur: Node;
+        let children: Node[];
         let hasChangedFlags = 0;
         const childDirtyBit = dirtyBit | TransformBit.POSITION;
 
@@ -2054,14 +2090,15 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
         if (!this._transformFlags) { return; }
         // we need to recursively iterate this
         // eslint-disable-next-line @typescript-eslint/no-this-alias
-        let cur: this | null = this;
+        let cur: Node | null = this;
         let i = 0;
         while (cur && cur._transformFlags) {
             // top level node
             dirtyNodes[i++] = cur;
             cur = cur._parent;
         }
-        let child: this; let dirtyBits = 0;
+        let child: Node;
+        let dirtyBits = 0;
 
         while (i) {
             child = dirtyNodes[--i];
@@ -2074,11 +2111,11 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
                     child._mat.m14 = child._pos.z;
                 }
                 if (dirtyBits & TransformBit.RS) {
-                    Mat4.fromRTS(child._mat, child._lrot, child._lpos, child._lscale);
+                    Mat4.fromSRT(child._mat, child._lrot, child._lpos, child._lscale);
                     Mat4.multiply(child._mat, cur._mat, child._mat);
 
                     const rotTmp = dirtyBits & TransformBit.ROTATION ? child._rot : null;
-                    Mat4.toRTS(child._mat, rotTmp, null, child._scale);
+                    Mat4.toSRT(child._mat, rotTmp, null, child._scale);
                 }
             } else {
                 if (dirtyBits & TransformBit.POSITION) {
@@ -2127,22 +2164,13 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
         const localPosition = this._lpos;
 
         if (y === undefined) {
-            // The type of val is Readonly<Vec3>
-            if (localPosition.equals(val as Vec3)) {
-                return;
-            }
-
             Vec3.copy(localPosition, val as Vec3);
         } else {
             if (z === undefined) {
                 z = localPosition.z;
             }
 
-            if (localPosition.equals(v3_a.set(val as number, y, z))) {
-                return;
-            }
-
-            Vec3.copy(localPosition, v3_a);
+            Vec3.set(localPosition, val as number, y, z);
         }
 
         this.invalidateChildren(TransformBit.POSITION);
@@ -2184,20 +2212,10 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
     public setRotation(x: number, y: number, z: number, w: number): void;
 
     public setRotation (val: Readonly<Quat> | number, y?: number, z?: number, w?: number): void {
-        const localRotation = this._lrot;
-
         if (y === undefined) {
-            if (localRotation.equals(val as Quat)) {
-                return;
-            }
-
-            Quat.copy(localRotation, val as Quat);
+            Quat.copy(this._lrot, val as Quat);
         } else {
-            if (localRotation.equals(q_a.set(val as number, y, z, w))) {
-                return;
-            }
-
-            Quat.copy(localRotation, q_a);
+            Quat.set(this._lrot, val as number, y, z!, w!);
         }
 
         this._eulerDirty = true;
@@ -2219,28 +2237,17 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
      * @zh 用欧拉角设置本地旋转
      * @param x X axis rotation
      * @param y Y axis rotation
-     * @param z Z axis rotation
+     * @param zOpt Z axis rotation
      */
     public setRotationFromEuler(x: number, y: number, zOpt?: number): void;
 
     public setRotationFromEuler (val: Vec3 | number, y?: number, zOpt?: number): void {
-        const z = zOpt === undefined ? this._euler.z : zOpt;
-        const euler = this._euler;
-
         if (y === undefined) {
-            if (euler.equals(val as Vec3)) {
-                return;
-            }
-
-            Vec3.copy(euler, val as Vec3);
+            Vec3.copy(this._euler, val as Vec3);
             Quat.fromEuler(this._lrot, (val as Vec3).x, (val as Vec3).y, (val as Vec3).z);
         } else {
-            Vec3.set(v3_a, val as number, y, z);
-            if (euler.equals(v3_a)) {
-                return;
-            }
-
-            Vec3.copy(euler, v3_a);
+            const z = zOpt === undefined ? this._euler.z : zOpt;
+            Vec3.set(this._euler, val as number, y, z);
             Quat.fromEuler(this._lrot, val as number, y, z);
         }
 
@@ -2285,22 +2292,12 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
         const localScale = this._lscale;
 
         if (y === undefined) {
-            if (localScale.equals(val as Vec3)) {
-                return;
-            }
-
             Vec3.copy(localScale, val as Vec3);
         } else {
             if (z === undefined) {
                 z = localScale.z;
             }
-
-            Vec3.set(v3_a, val as number, y, z);
-            if (localScale.equals(v3_a)) {
-                return;
-            }
-
-            Vec3.copy(localScale, v3_a);
+            Vec3.set(localScale, val as number, y, z);
         }
 
         this.invalidateChildren(TransformBit.SCALE);
@@ -2333,7 +2330,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
         Vec3.copy(out, p);
         // we need to recursively iterate this
         // eslint-disable-next-line @typescript-eslint/no-this-alias
-        let cur = this;
+        let cur: Node = this;
         let i = 0;
         while (cur._parent) {
             dirtyNodes[i++] = cur;
@@ -2366,19 +2363,11 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
         const worldPosition = this._pos;
 
         if (y === undefined) {
-            if (worldPosition.equals(val as Vec3)) {
-                return;
-            }
-
             Vec3.copy(worldPosition, val as Vec3);
         } else {
-            Vec3.set(v3_a, val as number, y, z!);
-            if (worldPosition.equals(v3_a)) {
-                return;
-            }
-
-            Vec3.copy(worldPosition, v3_a);
+            Vec3.set(worldPosition, val as number, y, z!);
         }
+
         const parent = this._parent;
         const local = this._lpos;
         if (parent) {
@@ -2433,19 +2422,11 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
     public setWorldRotation (val: Quat | number, y?: number, z?: number, w?: number): void {
         const worldRotation = this._rot;
         if (y === undefined) {
-            if (worldRotation.equals(val as Quat)) {
-                return;
-            }
-
             Quat.copy(worldRotation, val as Quat);
         } else {
-            Quat.set(q_a, val as number, y, z!, w!);
-            if (worldRotation.equals(q_a)) {
-                return;
-            }
-
-            Quat.copy(worldRotation, q_a);
+            Quat.set(worldRotation, val as number, y, z!, w!);
         }
+
         if (this._parent) {
             this._parent.updateWorldTransform();
             Quat.multiply(this._lrot, Quat.conjugate(this._lrot, this._parent._rot), worldRotation);
@@ -2468,26 +2449,8 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
      * @param z Z axis rotation
      */
     public setWorldRotationFromEuler (x: number, y: number, z: number): void {
-        const worldRotation = this._rot;
-
         Quat.fromEuler(q_a, x, y, z);
-        if (worldRotation.equals(q_a)) {
-            return;
-        }
-
-        Quat.copy(worldRotation, q_a);
-        if (this._parent) {
-            this._parent.updateWorldTransform();
-            Quat.multiply(this._lrot, Quat.conjugate(this._lrot, this._parent._rot), worldRotation);
-        } else {
-            Quat.copy(this._lrot, worldRotation);
-        }
-        this._eulerDirty = true;
-
-        this.invalidateChildren(TransformBit.ROTATION);
-        if (this._eventMask & TRANSFORM_ON) {
-            this.emit(NodeEventType.TRANSFORM_CHANGED, TransformBit.ROTATION);
-        }
+        this.setWorldRotation(q_a);
     }
 
     /**
@@ -2521,44 +2484,66 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
     public setWorldScale(x: number, y: number, z: number): void;
 
     public setWorldScale (val: Vec3 | number, y?: number, z?: number): void {
-        const worldScale = this._scale;
-
         const parent = this._parent;
         if (parent) {
             this.updateWorldTransform();
         }
-        if (y === undefined) {
-            if (worldScale.equals(val as Vec3)) {
-                return;
-            }
 
+        const worldScale = this._scale;
+        if (y === undefined) {
             Vec3.copy(worldScale, val as Vec3);
         } else {
-            Vec3.set(v3_a, val as number, y, z!);
-            if (worldScale.equals(v3_a)) {
-                return;
+            Vec3.set(worldScale, val as number, y, z!);
+        }
+
+        let rotationFlag = TransformBit.NONE;
+        if (parent) {
+            const xScale = Vec3.set(v3_b, this._mat.m00, this._mat.m01, this._mat.m02).length();
+            const yScale = Vec3.set(v3_b, this._mat.m04, this._mat.m05, this._mat.m06).length();
+            const zScale = Vec3.set(v3_b, this._mat.m08, this._mat.m09, this._mat.m10).length();
+            if (xScale === 0) {
+                v3_a.x = worldScale.x;
+                this._mat.m00 = 1;
+                rotationFlag = TransformBit.ROTATION;
+            } else {
+                v3_a.x = worldScale.x / xScale;
             }
 
-            Vec3.copy(worldScale, v3_a);
-        }
-        if (parent) {
-            v3_a.x = worldScale.x / Vec3.set(v3_b, this._mat.m00, this._mat.m01, this._mat.m02).length();
-            v3_a.y = worldScale.y / Vec3.set(v3_b, this._mat.m04, this._mat.m05, this._mat.m06).length();
-            v3_a.z = worldScale.z / Vec3.set(v3_b, this._mat.m08, this._mat.m09, this._mat.m10).length();
+            if (yScale === 0) {
+                v3_a.y = worldScale.y;
+                this._mat.m05 = 1;
+                rotationFlag = TransformBit.ROTATION;
+            } else {
+                v3_a.y = worldScale.y / yScale;
+            }
+
+            if (zScale === 0) {
+                v3_a.z = worldScale.z;
+                this._mat.m10 = 1;
+                rotationFlag = TransformBit.ROTATION;
+            } else {
+                v3_a.z = worldScale.z / zScale;
+            }
+
             Mat4.scale(m4_1, this._mat, v3_a);
             Mat4.multiply(m4_2, Mat4.invert(m4_2, parent._mat), m4_1);
             Mat3.fromQuat(m3_1, Quat.conjugate(qt_1, this._lrot));
             Mat3.multiplyMat4(m3_1, m3_1, m4_2);
-            this._lscale.x = Vec3.set(v3_a, m3_1.m00, m3_1.m01, m3_1.m02).length();
-            this._lscale.y = Vec3.set(v3_a, m3_1.m03, m3_1.m04, m3_1.m05).length();
-            this._lscale.z = Vec3.set(v3_a, m3_1.m06, m3_1.m07, m3_1.m08).length();
+
+            const localScale = this._lscale;
+            localScale.x = Vec3.set(v3_a, m3_1.m00, m3_1.m01, m3_1.m02).length();
+            localScale.y = Vec3.set(v3_a, m3_1.m03, m3_1.m04, m3_1.m05).length();
+            localScale.z = Vec3.set(v3_a, m3_1.m06, m3_1.m07, m3_1.m08).length();
+            if (localScale.x === 0 || localScale.y === 0 || localScale.z === 0) {
+                rotationFlag = TransformBit.ROTATION;
+            }
         } else {
             Vec3.copy(this._lscale, worldScale);
         }
 
-        this.invalidateChildren(TransformBit.SCALE);
+        this.invalidateChildren(TransformBit.SCALE | rotationFlag);
         if (this._eventMask & TRANSFORM_ON) {
-            this.emit(NodeEventType.TRANSFORM_CHANGED, TransformBit.SCALE);
+            this.emit(NodeEventType.TRANSFORM_CHANGED, TransformBit.SCALE | rotationFlag);
         }
     }
 
@@ -2722,7 +2707,7 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
     public getPathInHierarchy (): string {
         let result = this.name;
         let curNode: Node | null = this.parent;
-        while (curNode && !(curNode instanceof legacyCC.Scene)) {
+        while (curNode && !(curNode instanceof cclegacy.Scene)) {
             result = `${curNode.name}/${result}`;
             curNode = curNode.parent;
         }
@@ -2733,4 +2718,4 @@ export class Node extends CCObject implements ISchedulable, CustomSerializable {
 
 nodePolyfill(Node);
 
-legacyCC.Node = Node;
+cclegacy.Node = Node;

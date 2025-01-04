@@ -1,7 +1,7 @@
-/****************************************************************************
- Copyright (c) 2021-2023 Xiamen Yaji Software Co., Ltd.
+/*
+ Copyright (c) 2021-2024 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
-****************************************************************************/
+*/
 
 /**
  * ========================= !DO NOT CHANGE THE FOLLOWING SECTION MANUALLY! =========================
@@ -93,11 +93,8 @@ public:
     void setArrayBuffer(const ccstd::string &name, const ArrayBuffer *arrayBuffer) /*implements*/;
     void setBuffer(const ccstd::string &name, gfx::Buffer *buffer) /*implements*/;
     void setTexture(const ccstd::string &name, gfx::Texture *texture) /*implements*/;
-    void setReadWriteBuffer(const ccstd::string &name, gfx::Buffer *buffer) /*implements*/;
-    void setReadWriteTexture(const ccstd::string &name, gfx::Texture *texture) /*implements*/;
     void setSampler(const ccstd::string &name, gfx::Sampler *sampler) /*implements*/;
     void setBuiltinCameraConstants(const scene::Camera *camera) /*implements*/;
-    void setBuiltinShadowMapConstants(const scene::DirectionalLight *light) /*implements*/;
     void setBuiltinDirectionalLightConstants(const scene::DirectionalLight *light, const scene::Camera *camera) /*implements*/;
     void setBuiltinSphereLightConstants(const scene::SphereLight *light, const scene::Camera *camera) /*implements*/;
     void setBuiltinSpotLightConstants(const scene::SpotLight *light, const scene::Camera *camera) /*implements*/;
@@ -158,20 +155,11 @@ public:
     void setTexture(const ccstd::string &name, gfx::Texture *texture) override {
         NativeSetter::setTexture(name, texture);
     }
-    void setReadWriteBuffer(const ccstd::string &name, gfx::Buffer *buffer) override {
-        NativeSetter::setReadWriteBuffer(name, buffer);
-    }
-    void setReadWriteTexture(const ccstd::string &name, gfx::Texture *texture) override {
-        NativeSetter::setReadWriteTexture(name, texture);
-    }
     void setSampler(const ccstd::string &name, gfx::Sampler *sampler) override {
         NativeSetter::setSampler(name, sampler);
     }
     void setBuiltinCameraConstants(const scene::Camera *camera) override {
         NativeSetter::setBuiltinCameraConstants(camera);
-    }
-    void setBuiltinShadowMapConstants(const scene::DirectionalLight *light) override {
-        NativeSetter::setBuiltinShadowMapConstants(light);
     }
     void setBuiltinDirectionalLightConstants(const scene::DirectionalLight *light, const scene::Camera *camera) override {
         NativeSetter::setBuiltinDirectionalLightConstants(light, camera);
@@ -209,7 +197,7 @@ public:
     void addStorageBuffer(const ccstd::string &name, AccessType accessType, const ccstd::string &slotName) /*implements*/;
     void addStorageImage(const ccstd::string &name, AccessType accessType, const ccstd::string &slotName) /*implements*/;
     void setViewport(const gfx::Viewport &viewport) /*implements*/;
-    RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName) /*implements*/;
+    RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName, const ccstd::string &passName) /*implements*/;
     bool getShowStatistics() const /*implements*/;
     void setShowStatistics(bool enable) /*implements*/;
     void setCustomShaderStages(const ccstd::string &name, gfx::ShaderStageFlagBit stageFlags) /*implements*/;
@@ -257,20 +245,11 @@ public:
     void setTexture(const ccstd::string &name, gfx::Texture *texture) override {
         NativeSetter::setTexture(name, texture);
     }
-    void setReadWriteBuffer(const ccstd::string &name, gfx::Buffer *buffer) override {
-        NativeSetter::setReadWriteBuffer(name, buffer);
-    }
-    void setReadWriteTexture(const ccstd::string &name, gfx::Texture *texture) override {
-        NativeSetter::setReadWriteTexture(name, texture);
-    }
     void setSampler(const ccstd::string &name, gfx::Sampler *sampler) override {
         NativeSetter::setSampler(name, sampler);
     }
     void setBuiltinCameraConstants(const scene::Camera *camera) override {
         NativeSetter::setBuiltinCameraConstants(camera);
-    }
-    void setBuiltinShadowMapConstants(const scene::DirectionalLight *light) override {
-        NativeSetter::setBuiltinShadowMapConstants(light);
     }
     void setBuiltinDirectionalLightConstants(const scene::DirectionalLight *light, const scene::Camera *camera) override {
         NativeSetter::setBuiltinDirectionalLightConstants(light, camera);
@@ -295,7 +274,7 @@ public:
     }
 
     void addSceneOfCamera(scene::Camera *camera, LightInfo light, SceneFlags sceneFlags) override;
-    SceneBuilder *addScene(const scene::Camera *camera, SceneFlags sceneFlags, scene::Light *light) override;
+    SceneBuilder *addScene(const scene::Camera *camera, SceneFlags sceneFlags, scene::Light *light, scene::RenderScene *scene) override;
     void addFullscreenQuad(Material *material, uint32_t passID, SceneFlags sceneFlags) override;
     void addCameraQuad(scene::Camera *camera, Material *material, uint32_t passID, SceneFlags sceneFlags) override;
     void clearRenderTarget(const ccstd::string &name, const gfx::Color &color) override;
@@ -345,20 +324,11 @@ public:
     void setTexture(const ccstd::string &name, gfx::Texture *texture) override {
         NativeSetter::setTexture(name, texture);
     }
-    void setReadWriteBuffer(const ccstd::string &name, gfx::Buffer *buffer) override {
-        NativeSetter::setReadWriteBuffer(name, buffer);
-    }
-    void setReadWriteTexture(const ccstd::string &name, gfx::Texture *texture) override {
-        NativeSetter::setReadWriteTexture(name, texture);
-    }
     void setSampler(const ccstd::string &name, gfx::Sampler *sampler) override {
         NativeSetter::setSampler(name, sampler);
     }
     void setBuiltinCameraConstants(const scene::Camera *camera) override {
         NativeSetter::setBuiltinCameraConstants(camera);
-    }
-    void setBuiltinShadowMapConstants(const scene::DirectionalLight *light) override {
-        NativeSetter::setBuiltinShadowMapConstants(light);
     }
     void setBuiltinDirectionalLightConstants(const scene::DirectionalLight *light, const scene::Camera *camera) override {
         NativeSetter::setBuiltinDirectionalLightConstants(light, camera);
@@ -400,8 +370,8 @@ public:
     void setViewport(const gfx::Viewport &viewport) override {
         NativeRenderSubpassBuilderImpl::setViewport(viewport);
     }
-    RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName) override {
-        return NativeRenderSubpassBuilderImpl::addQueue(hint, phaseName);
+    RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName, const ccstd::string &passName) override {
+        return NativeRenderSubpassBuilderImpl::addQueue(hint, phaseName, passName);
     }
     bool getShowStatistics() const override {
         return NativeRenderSubpassBuilderImpl::getShowStatistics();
@@ -456,20 +426,11 @@ public:
     void setTexture(const ccstd::string &name, gfx::Texture *texture) override {
         NativeSetter::setTexture(name, texture);
     }
-    void setReadWriteBuffer(const ccstd::string &name, gfx::Buffer *buffer) override {
-        NativeSetter::setReadWriteBuffer(name, buffer);
-    }
-    void setReadWriteTexture(const ccstd::string &name, gfx::Texture *texture) override {
-        NativeSetter::setReadWriteTexture(name, texture);
-    }
     void setSampler(const ccstd::string &name, gfx::Sampler *sampler) override {
         NativeSetter::setSampler(name, sampler);
     }
     void setBuiltinCameraConstants(const scene::Camera *camera) override {
         NativeSetter::setBuiltinCameraConstants(camera);
-    }
-    void setBuiltinShadowMapConstants(const scene::DirectionalLight *light) override {
-        NativeSetter::setBuiltinShadowMapConstants(light);
     }
     void setBuiltinDirectionalLightConstants(const scene::DirectionalLight *light, const scene::Camera *camera) override {
         NativeSetter::setBuiltinDirectionalLightConstants(light, camera);
@@ -511,8 +472,8 @@ public:
     void setViewport(const gfx::Viewport &viewport) override {
         NativeRenderSubpassBuilderImpl::setViewport(viewport);
     }
-    RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName) override {
-        return NativeRenderSubpassBuilderImpl::addQueue(hint, phaseName);
+    RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName, const ccstd::string &passName) override {
+        return NativeRenderSubpassBuilderImpl::addQueue(hint, phaseName, passName);
     }
     bool getShowStatistics() const override {
         return NativeRenderSubpassBuilderImpl::getShowStatistics();
@@ -570,20 +531,11 @@ public:
     void setTexture(const ccstd::string &name, gfx::Texture *texture) override {
         NativeSetter::setTexture(name, texture);
     }
-    void setReadWriteBuffer(const ccstd::string &name, gfx::Buffer *buffer) override {
-        NativeSetter::setReadWriteBuffer(name, buffer);
-    }
-    void setReadWriteTexture(const ccstd::string &name, gfx::Texture *texture) override {
-        NativeSetter::setReadWriteTexture(name, texture);
-    }
     void setSampler(const ccstd::string &name, gfx::Sampler *sampler) override {
         NativeSetter::setSampler(name, sampler);
     }
     void setBuiltinCameraConstants(const scene::Camera *camera) override {
         NativeSetter::setBuiltinCameraConstants(camera);
-    }
-    void setBuiltinShadowMapConstants(const scene::DirectionalLight *light) override {
-        NativeSetter::setBuiltinShadowMapConstants(light);
     }
     void setBuiltinDirectionalLightConstants(const scene::DirectionalLight *light, const scene::Camera *camera) override {
         NativeSetter::setBuiltinDirectionalLightConstants(light, camera);
@@ -611,7 +563,7 @@ public:
     void addTexture(const ccstd::string &name, const ccstd::string &slotName, gfx::Sampler *sampler, uint32_t plane) override;
     void addStorageBuffer(const ccstd::string &name, AccessType accessType, const ccstd::string &slotName) override;
     void addStorageImage(const ccstd::string &name, AccessType accessType, const ccstd::string &slotName) override;
-    ComputeQueueBuilder *addQueue(const ccstd::string &phaseName) override;
+    ComputeQueueBuilder *addQueue(const ccstd::string &phaseName, const ccstd::string &passName) override;
     void setCustomShaderStages(const ccstd::string &name, gfx::ShaderStageFlagBit stageFlags) override;
 };
 
@@ -657,20 +609,11 @@ public:
     void setTexture(const ccstd::string &name, gfx::Texture *texture) override {
         NativeSetter::setTexture(name, texture);
     }
-    void setReadWriteBuffer(const ccstd::string &name, gfx::Buffer *buffer) override {
-        NativeSetter::setReadWriteBuffer(name, buffer);
-    }
-    void setReadWriteTexture(const ccstd::string &name, gfx::Texture *texture) override {
-        NativeSetter::setReadWriteTexture(name, texture);
-    }
     void setSampler(const ccstd::string &name, gfx::Sampler *sampler) override {
         NativeSetter::setSampler(name, sampler);
     }
     void setBuiltinCameraConstants(const scene::Camera *camera) override {
         NativeSetter::setBuiltinCameraConstants(camera);
-    }
-    void setBuiltinShadowMapConstants(const scene::DirectionalLight *light) override {
-        NativeSetter::setBuiltinShadowMapConstants(light);
     }
     void setBuiltinDirectionalLightConstants(const scene::DirectionalLight *light, const scene::Camera *camera) override {
         NativeSetter::setBuiltinDirectionalLightConstants(light, camera);
@@ -697,7 +640,7 @@ public:
     void addRenderTarget(const ccstd::string &name, gfx::LoadOp loadOp, gfx::StoreOp storeOp, const gfx::Color &color) override;
     void addDepthStencil(const ccstd::string &name, gfx::LoadOp loadOp, gfx::StoreOp storeOp, float depth, uint8_t stencil, gfx::ClearFlagBit clearFlags) override;
     void addTexture(const ccstd::string &name, const ccstd::string &slotName, gfx::Sampler *sampler, uint32_t plane) override;
-    RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName) override;
+    RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName, const ccstd::string &passName) override;
     void setViewport(const gfx::Viewport &viewport) override;
     void setVersion(const ccstd::string &name, uint64_t version) override;
     bool getShowStatistics() const override;
@@ -756,20 +699,11 @@ public:
     void setTexture(const ccstd::string &name, gfx::Texture *texture) override {
         NativeSetter::setTexture(name, texture);
     }
-    void setReadWriteBuffer(const ccstd::string &name, gfx::Buffer *buffer) override {
-        NativeSetter::setReadWriteBuffer(name, buffer);
-    }
-    void setReadWriteTexture(const ccstd::string &name, gfx::Texture *texture) override {
-        NativeSetter::setReadWriteTexture(name, texture);
-    }
     void setSampler(const ccstd::string &name, gfx::Sampler *sampler) override {
         NativeSetter::setSampler(name, sampler);
     }
     void setBuiltinCameraConstants(const scene::Camera *camera) override {
         NativeSetter::setBuiltinCameraConstants(camera);
-    }
-    void setBuiltinShadowMapConstants(const scene::DirectionalLight *light) override {
-        NativeSetter::setBuiltinShadowMapConstants(light);
     }
     void setBuiltinDirectionalLightConstants(const scene::DirectionalLight *light, const scene::Camera *camera) override {
         NativeSetter::setBuiltinDirectionalLightConstants(light, camera);
@@ -796,7 +730,7 @@ public:
     void addRenderTarget(const ccstd::string &name, gfx::LoadOp loadOp, gfx::StoreOp storeOp, const gfx::Color &color) override;
     void addDepthStencil(const ccstd::string &name, gfx::LoadOp loadOp, gfx::StoreOp storeOp, float depth, uint8_t stencil, gfx::ClearFlagBit clearFlags) override;
     void addTexture(const ccstd::string &name, const ccstd::string &slotName, gfx::Sampler *sampler, uint32_t plane) override;
-    RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName) override;
+    RenderQueueBuilder *addQueue(QueueHint hint, const ccstd::string &phaseName, const ccstd::string &passName) override;
     void setViewport(const gfx::Viewport &viewport) override;
     void setVersion(const ccstd::string &name, uint64_t version) override;
     bool getShowStatistics() const override;
@@ -854,20 +788,11 @@ public:
     void setTexture(const ccstd::string &name, gfx::Texture *texture) override {
         NativeSetter::setTexture(name, texture);
     }
-    void setReadWriteBuffer(const ccstd::string &name, gfx::Buffer *buffer) override {
-        NativeSetter::setReadWriteBuffer(name, buffer);
-    }
-    void setReadWriteTexture(const ccstd::string &name, gfx::Texture *texture) override {
-        NativeSetter::setReadWriteTexture(name, texture);
-    }
     void setSampler(const ccstd::string &name, gfx::Sampler *sampler) override {
         NativeSetter::setSampler(name, sampler);
     }
     void setBuiltinCameraConstants(const scene::Camera *camera) override {
         NativeSetter::setBuiltinCameraConstants(camera);
-    }
-    void setBuiltinShadowMapConstants(const scene::DirectionalLight *light) override {
-        NativeSetter::setBuiltinShadowMapConstants(light);
     }
     void setBuiltinDirectionalLightConstants(const scene::DirectionalLight *light, const scene::Camera *camera) override {
         NativeSetter::setBuiltinDirectionalLightConstants(light, camera);
@@ -936,20 +861,11 @@ public:
     void setTexture(const ccstd::string &name, gfx::Texture *texture) override {
         NativeSetter::setTexture(name, texture);
     }
-    void setReadWriteBuffer(const ccstd::string &name, gfx::Buffer *buffer) override {
-        NativeSetter::setReadWriteBuffer(name, buffer);
-    }
-    void setReadWriteTexture(const ccstd::string &name, gfx::Texture *texture) override {
-        NativeSetter::setReadWriteTexture(name, texture);
-    }
     void setSampler(const ccstd::string &name, gfx::Sampler *sampler) override {
         NativeSetter::setSampler(name, sampler);
     }
     void setBuiltinCameraConstants(const scene::Camera *camera) override {
         NativeSetter::setBuiltinCameraConstants(camera);
-    }
-    void setBuiltinShadowMapConstants(const scene::DirectionalLight *light) override {
-        NativeSetter::setBuiltinShadowMapConstants(light);
     }
     void setBuiltinDirectionalLightConstants(const scene::DirectionalLight *light, const scene::Camera *camera) override {
         NativeSetter::setBuiltinDirectionalLightConstants(light, camera);
@@ -977,7 +893,7 @@ public:
     void addStorageBuffer(const ccstd::string &name, AccessType accessType, const ccstd::string &slotName) override;
     void addStorageImage(const ccstd::string &name, AccessType accessType, const ccstd::string &slotName) override;
     void addMaterialTexture(const ccstd::string &resourceName, gfx::ShaderStageFlagBit flags) override;
-    ComputeQueueBuilder *addQueue(const ccstd::string &phaseName) override;
+    ComputeQueueBuilder *addQueue(const ccstd::string &phaseName, const ccstd::string &passName) override;
     void setCustomShaderStages(const ccstd::string &name, gfx::ShaderStageFlagBit stageFlags) override;
 };
 
@@ -1037,13 +953,13 @@ struct ProbeHelperQueue {
 
     static LayoutGraphData::vertex_descriptor getDefaultId(const LayoutGraphData &lg);
 
-    inline void clear() noexcept {
+    void clear() noexcept {
         probeMap.clear();
     }
 
     void removeMacro() const;
 
-    static uint32_t getPassIndexFromLayout(const IntrusivePtr<scene::SubModel>& subModel, LayoutGraphData::vertex_descriptor phaseLayoutId);
+    static int32_t getPassIndexFromLayout(const IntrusivePtr<scene::SubModel>& subModel, LayoutGraphData::vertex_descriptor phaseLayoutId);
 
     void applyMacro(const LayoutGraphData &lg, const scene::Model& model, LayoutGraphData::vertex_descriptor probeLayoutId);
 
@@ -1083,7 +999,6 @@ struct NativeRenderQueue {
     }
 
     NativeRenderQueue(const allocator_type& alloc) noexcept; // NOLINT
-    NativeRenderQueue(SceneFlags sceneFlagsIn, uint32_t subpassOrPassLayoutIDIn, const allocator_type& alloc) noexcept;
     NativeRenderQueue(NativeRenderQueue&& rhs, const allocator_type& alloc);
 
     NativeRenderQueue(NativeRenderQueue&& rhs) noexcept = default;
@@ -1095,15 +1010,15 @@ struct NativeRenderQueue {
     void clear() noexcept;
     bool empty() const noexcept;
     void recordCommands(
-        gfx::CommandBuffer *cmdBuffer, gfx::RenderPass *renderPass, uint32_t subpassIndex) const;
+        gfx::CommandBuffer *cmdBuffer, gfx::RenderPass *renderPass, uint32_t subpassIndex, SceneFlags sceneFlags) const;
 
     RenderDrawQueue opaqueQueue;
     RenderDrawQueue transparentQueue;
     ProbeHelperQueue probeQueue;
     RenderInstancingQueue opaqueInstancingQueue;
     RenderInstancingQueue transparentInstancingQueue;
+    const scene::Camera* camera{nullptr};
     SceneFlags sceneFlags{SceneFlags::NONE};
-    uint32_t subpassOrPassLayoutID{0xFFFFFFFF};
     uint32_t lightByteOffset{0xFFFFFFFF};
 };
 
@@ -1277,11 +1192,12 @@ struct FrustumCullingKey {
     const scene::Light* light{nullptr};
     uint32_t lightLevel{0xFFFFFFFF};
     bool castShadow{false};
+    bool probePass{false};
 };
 
 inline bool operator==(const FrustumCullingKey& lhs, const FrustumCullingKey& rhs) noexcept {
-    return std::forward_as_tuple(lhs.camera, lhs.probe, lhs.light, lhs.lightLevel, lhs.castShadow) ==
-           std::forward_as_tuple(rhs.camera, rhs.probe, rhs.light, rhs.lightLevel, rhs.castShadow);
+    return std::forward_as_tuple(lhs.camera, lhs.probe, lhs.light, lhs.lightLevel, lhs.castShadow, lhs.probePass) ==
+           std::forward_as_tuple(rhs.camera, rhs.probe, rhs.light, rhs.lightLevel, rhs.castShadow, rhs.probePass);
 }
 
 inline bool operator!=(const FrustumCullingKey& lhs, const FrustumCullingKey& rhs) noexcept {
@@ -1331,6 +1247,15 @@ struct LightBoundsCullingID {
     uint32_t value{0xFFFFFFFF};
 };
 
+inline bool operator==(const LightBoundsCullingID& lhs, const LightBoundsCullingID& rhs) noexcept {
+    return std::forward_as_tuple(lhs.value) ==
+           std::forward_as_tuple(rhs.value);
+}
+
+inline bool operator!=(const LightBoundsCullingID& lhs, const LightBoundsCullingID& rhs) noexcept {
+    return !(lhs == rhs);
+}
+
 struct LightBoundsCullingKey {
     FrustumCullingID frustumCullingID;
     const scene::Camera* camera{nullptr};
@@ -1373,11 +1298,25 @@ struct NativeRenderQueueID {
     uint32_t value{0xFFFFFFFF};
 };
 
-struct NativeRenderQueueDesc {
+struct NativeRenderQueueKey {
+    FrustumCullingID frustumCulledResultID;
+    LightBoundsCullingID lightBoundsCulledResultID;
+    uint32_t queueLayoutID{0xFFFFFFFF};
+};
+
+inline bool operator==(const NativeRenderQueueKey& lhs, const NativeRenderQueueKey& rhs) noexcept {
+    return std::forward_as_tuple(lhs.frustumCulledResultID, lhs.lightBoundsCulledResultID, lhs.queueLayoutID) ==
+           std::forward_as_tuple(rhs.frustumCulledResultID, rhs.lightBoundsCulledResultID, rhs.queueLayoutID);
+}
+
+inline bool operator!=(const NativeRenderQueueKey& lhs, const NativeRenderQueueKey& rhs) noexcept {
+    return !(lhs == rhs);
+}
+
+struct NativeRenderQueueQuery {
     FrustumCullingID frustumCulledResultID;
     LightBoundsCullingID lightBoundsCulledResultID;
     NativeRenderQueueID renderQueueTarget;
-    scene::LightType lightType{scene::LightType::UNKNOWN};
 };
 
 struct LightBoundsCullingResult {
@@ -1404,18 +1343,20 @@ struct SceneCulling {
 private:
     FrustumCullingID getOrCreateFrustumCulling(const SceneData& sceneData);
     LightBoundsCullingID getOrCreateLightBoundsCulling(const SceneData& sceneData, FrustumCullingID frustumCullingID);
-    NativeRenderQueueID createRenderQueue(SceneFlags sceneFlags, LayoutGraphData::vertex_descriptor subpassOrPassLayoutID);
-    void collectCullingQueries(const RenderGraph& rg, const LayoutGraphData& lg);
+    NativeRenderQueueID getOrCreateRenderQueue(
+        const NativeRenderQueueKey& renderQueueKey, SceneFlags sceneFlags, const scene::Camera* camera);
+    void collectCullingQueries(const RenderGraph& rg);
     void batchFrustumCulling(const NativePipeline& ppl);
     void batchLightBoundsCulling();
-    void fillRenderQueues(const RenderGraph& rg, const pipeline::PipelineSceneData& pplSceneData);
+    void fillRenderQueues();
 public:
     ccstd::pmr::unordered_map<const scene::RenderScene*, FrustumCulling> frustumCullings;
     ccstd::pmr::vector<ccstd::vector<const scene::Model*>> frustumCullingResults;
     ccstd::pmr::unordered_map<const scene::RenderScene*, LightBoundsCulling> lightBoundsCullings;
     ccstd::pmr::vector<LightBoundsCullingResult> lightBoundsCullingResults;
+    ccstd::pmr::unordered_map<NativeRenderQueueKey, NativeRenderQueueID> renderQueueIndex;
     ccstd::pmr::vector<NativeRenderQueue> renderQueues;
-    PmrFlatMap<RenderGraph::vertex_descriptor, NativeRenderQueueDesc> renderQueueIndex;
+    PmrFlatMap<RenderGraph::vertex_descriptor, NativeRenderQueueQuery> renderQueueQueryIndex;
     uint32_t numFrustumCulling{0};
     uint32_t numLightBoundsCulling{0};
     uint32_t numRenderQueues{0};
@@ -1625,8 +1566,8 @@ public:
     bool getEnableCpuLightCulling() const override;
     void setEnableCpuLightCulling(bool enable) override;
     bool containsResource(const ccstd::string &name) const override;
-    uint32_t addRenderWindow(const ccstd::string &name, gfx::Format format, uint32_t width, uint32_t height, scene::RenderWindow *renderWindow) override;
-    void updateRenderWindow(const ccstd::string &name, scene::RenderWindow *renderWindow) override;
+    uint32_t addRenderWindow(const ccstd::string &name, gfx::Format format, uint32_t width, uint32_t height, scene::RenderWindow *renderWindow, const ccstd::string &depthStencilName) override;
+    void updateRenderWindow(const ccstd::string &name, scene::RenderWindow *renderWindow, const ccstd::string &depthStencilName) override;
     uint32_t addRenderTarget(const ccstd::string &name, gfx::Format format, uint32_t width, uint32_t height, ResourceResidency residency) override;
     uint32_t addDepthStencil(const ccstd::string &name, gfx::Format format, uint32_t width, uint32_t height, ResourceResidency residency) override;
     void updateRenderTarget(const ccstd::string &name, uint32_t width, uint32_t height, gfx::Format format) override;
@@ -1658,8 +1599,6 @@ public:
     ComputePassBuilder *addComputePass(const ccstd::string &passName) override;
     void addUploadPass(ccstd::vector<UploadPair> &uploadPairs) override;
     void addMovePass(const ccstd::vector<MovePair> &movePairs) override;
-    void addBuiltinGpuCullingPass(const scene::Camera *camera, const std::string &hzbName, const scene::Light *light) override;
-    void addBuiltinHzbGenerationPass(const std::string &sourceDepthStencilName, const std::string &targetHzbName) override;
     uint32_t addCustomBuffer(const ccstd::string &name, const gfx::BufferInfo &info, const std::string &type) override;
     uint32_t addCustomTexture(const ccstd::string &name, const gfx::TextureInfo &info, const std::string &type) override;
 
@@ -1698,6 +1637,7 @@ public:
     mutable PmrFlatMap<BuiltinCascadedShadowMapKey, BuiltinCascadedShadowMap> builtinCSMs;
     PipelineStatistics statistics;
     PipelineCustomization custom;
+    bool defaultFramebufferHasDepthStencil{false};
 };
 
 class NativeProgramProxy final : public ProgramProxy {
@@ -1742,10 +1682,17 @@ inline hash_t hash<cc::render::FrustumCullingKey>::operator()(const cc::render::
     hash_combine(seed, val.light);
     hash_combine(seed, val.lightLevel);
     hash_combine(seed, val.castShadow);
+    hash_combine(seed, val.probePass);
     return seed;
 }
 
 inline hash_t hash<cc::render::FrustumCullingID>::operator()(const cc::render::FrustumCullingID& val) const noexcept {
+    hash_t seed = 0;
+    hash_combine(seed, val.value);
+    return seed;
+}
+
+inline hash_t hash<cc::render::LightBoundsCullingID>::operator()(const cc::render::LightBoundsCullingID& val) const noexcept {
     hash_t seed = 0;
     hash_combine(seed, val.value);
     return seed;
@@ -1757,6 +1704,14 @@ inline hash_t hash<cc::render::LightBoundsCullingKey>::operator()(const cc::rend
     hash_combine(seed, val.camera);
     hash_combine(seed, val.probe);
     hash_combine(seed, val.cullingLight);
+    return seed;
+}
+
+inline hash_t hash<cc::render::NativeRenderQueueKey>::operator()(const cc::render::NativeRenderQueueKey& val) const noexcept {
+    hash_t seed = 0;
+    hash_combine(seed, val.frustumCulledResultID);
+    hash_combine(seed, val.lightBoundsCulledResultID);
+    hash_combine(seed, val.queueLayoutID);
     return seed;
 }
 

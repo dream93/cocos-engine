@@ -25,18 +25,23 @@
 
 /* eslint-disable max-len */
 import { EffectAsset } from '../../asset/assets';
-import { Attribute, DescriptorSetLayout, DescriptorType, DESCRIPTOR_BUFFER_TYPE, DESCRIPTOR_SAMPLER_TYPE, Device, MemoryAccessBit, PipelineLayout, PipelineLayoutInfo, Shader, ShaderInfo, ShaderStage, ShaderStageFlagBit, Type, Uniform, UniformBlock, UniformInputAttachment, UniformSampler, UniformSamplerTexture, UniformStorageBuffer, UniformStorageImage, UniformTexture, deviceManager, PipelineState, DescriptorSetLayoutInfo, DescriptorSetInfo } from '../../gfx';
-import { genHandles, getActiveAttributes, getCombinationDefines, getShaderInstanceName, getSize, getVariantKey, populateMacros, prepareDefines } from '../../render-scene/core/program-utils';
+import { assert, error, errorID } from '../../core/platform/debug';
+import { Attribute, DESCRIPTOR_BUFFER_TYPE, DESCRIPTOR_SAMPLER_TYPE, DescriptorSetInfo, DescriptorSetLayout, DescriptorSetLayoutInfo, DescriptorType, Device, deviceManager, MemoryAccessBit, PipelineLayout, PipelineLayoutInfo, PipelineState, Shader, ShaderInfo, ShaderStage, ShaderStageFlagBit, Type, Uniform, UniformBlock, UniformInputAttachment, UniformSampler, UniformSamplerTexture, UniformStorageBuffer, UniformStorageImage, UniformTexture } from '../../gfx';
 import { getDeviceShaderVersion, MacroRecord } from '../../render-scene';
 import { IProgramInfo } from '../../render-scene/core/program-lib';
-import { DescriptorBlockData, DescriptorData, DescriptorSetData, DescriptorSetLayoutData, LayoutGraphData, LayoutGraphDataValue, PipelineLayoutData, RenderPhaseData, ShaderProgramData } from './layout-graph';
-import { ProgramLibrary, ProgramProxy } from './private';
-import { DescriptorTypeOrder, UpdateFrequency } from './types';
-import { ProgramGroup, ProgramInfo } from './web-types';
-import { getCustomPassID, getCustomPhaseID, getOrCreateDescriptorSetLayout, getEmptyDescriptorSetLayout, getEmptyPipelineLayout, initializeDescriptorSetLayoutInfo, makeDescriptorSetLayoutData, getDescriptorSetLayout, getOrCreateDescriptorID, getDescriptorTypeOrder, getProgramID, getDescriptorNameID, getDescriptorName, INVALID_ID, ENABLE_SUBPASS, getCustomSubpassID, generateConstantMacros, populatePipelineLayoutInfo } from './layout-graph-utils';
-import { assert, error } from '../../core/platform/debug';
-import { IDescriptorSetLayoutInfo, UBOSkinning, localDescriptorSetLayout } from '../define';
+import { genHandles, getActiveAttributes, getCombinationDefines, getShaderInstanceName, getSize, getVariantKey, populateMacros, prepareDefines } from '../../render-scene/core/program-utils';
+import { IDescriptorSetLayoutInfo, localDescriptorSetLayout, UBOSkinning } from '../define';
+import {
+    DescriptorBlockData, DescriptorData, DescriptorSetData, DescriptorSetLayoutData,
+    DescriptorTypeOrder,
+    LayoutGraphData, LayoutGraphDataValue, PipelineLayoutData,
+    RenderPhaseData, ShaderProgramData,
+} from './layout-graph';
+import { ENABLE_SUBPASS, generateConstantMacros, getCustomPassID, getCustomPhaseID, getCustomSubpassID, getDescriptorName, getDescriptorNameID, getDescriptorSetLayout, getDescriptorTypeOrder, getEmptyDescriptorSetLayout, getEmptyPipelineLayout, getOrCreateDescriptorID, getOrCreateDescriptorSetLayout, getProgramID, initializeDescriptorSetLayoutInfo, INVALID_ID, makeDescriptorSetLayoutData, populatePipelineLayoutInfo } from './layout-graph-utils';
 import { PipelineRuntime } from './pipeline';
+import { ProgramLibrary, ProgramProxy } from './private';
+import { UpdateFrequency } from './types';
+import { ProgramGroup, ProgramInfo } from './web-types';
 
 const _setIndex = [2, 1, 3, 0];
 
@@ -788,7 +793,7 @@ export function getOrCreateProgramDescriptorSetLayout (
     rate: UpdateFrequency,
 ): DescriptorSetLayout {
     assert(rate < UpdateFrequency.PER_PHASE);
-    const phase = lg.getRenderPhase(phaseID);
+    const phase = lg.j<RenderPhaseData>(phaseID);
     const programID = phase.shaderIndex.get(programName);
     if (programID === undefined) {
         return getEmptyDescriptorSetLayout();
@@ -815,7 +820,7 @@ export function getProgramDescriptorSetLayout (
     rate: UpdateFrequency,
 ): DescriptorSetLayout | null {
     assert(rate < UpdateFrequency.PER_PHASE);
-    const phase = lg.getRenderPhase(phaseID);
+    const phase = lg.j<RenderPhaseData>(phaseID);
     const programID = phase.shaderIndex.get(programName);
     if (programID === undefined) {
         return null;
@@ -884,8 +889,8 @@ export function validateShaderInfo (srcShaderInfo: EffectAsset.IShaderInfo): num
 export class WebProgramLibrary implements ProgramLibrary {
     constructor (lg: LayoutGraphData) {
         this.layoutGraph = lg;
-        for (const v of lg.vertices()) {
-            if (lg.holds(LayoutGraphDataValue.RenderPhase, v)) {
+        for (const v of lg.v()) {
+            if (lg.h(LayoutGraphDataValue.RenderPhase, v)) {
                 this.phases.set(v, new ProgramGroup());
             }
         }
@@ -906,8 +911,8 @@ export class WebProgramLibrary implements ProgramLibrary {
 
         // init layout graph
         const lg = this.layoutGraph;
-        for (const v of lg.vertices()) {
-            const layout: PipelineLayoutData = lg.get('Layout').get(v) as PipelineLayoutData;
+        for (const v of lg.v()) {
+            const layout: PipelineLayoutData = lg.getLayout(v);
             for (const [update, set] of layout.descriptorSets) {
                 initializeDescriptorSetLayoutInfo(set.descriptorSetLayoutData, set.descriptorSetLayoutInfo);
                 set.descriptorSetLayout = this.device.createDescriptorSetLayout(set.descriptorSetLayoutInfo);
@@ -917,8 +922,8 @@ export class WebProgramLibrary implements ProgramLibrary {
             }
         }
 
-        for (const v of lg.vertices()) {
-            if (!lg.holds(LayoutGraphDataValue.RenderPhase, v)) {
+        for (const v of lg.v()) {
+            if (!lg.h(LayoutGraphDataValue.RenderPhase, v)) {
                 continue;
             }
             const phaseID = v;
@@ -930,7 +935,7 @@ export class WebProgramLibrary implements ProgramLibrary {
             populatePipelineLayoutInfo(phaseLayout, UpdateFrequency.PER_PHASE, info);
             populatePipelineLayoutInfo(phaseLayout, UpdateFrequency.PER_BATCH, info);
             populatePipelineLayoutInfo(phaseLayout, UpdateFrequency.PER_INSTANCE, info);
-            const phase = lg.getRenderPhase(phaseID);
+            const phase = lg.j<RenderPhaseData>(phaseID);
             phase.pipelineLayout = this.device.createPipelineLayout(info);
         }
 
@@ -989,7 +994,7 @@ export class WebProgramLibrary implements ProgramLibrary {
                 // collect program descriptors
                 let programData: ShaderProgramData | null = null;
                 if (!this.mergeHighFrequency) {
-                    const phase = lg.getRenderPhase(phaseID);
+                    const phase = lg.j<RenderPhaseData>(phaseID);
                     programData = new ShaderProgramData();
                     buildProgramData(programName, srcShaderInfo, lg, phase, programData, this.fixedLocal);
                 }
@@ -1113,7 +1118,7 @@ export class WebProgramLibrary implements ProgramLibrary {
         if (deviceShaderVersion) {
             src = programInfo[deviceShaderVersion];
         } else {
-            error('Invalid GFX API!');
+            errorID(16346);
         }
 
         // prepare shader info
@@ -1203,11 +1208,11 @@ export class WebProgramLibrary implements ProgramLibrary {
     getPipelineLayout (device: Device, phaseID: number, programName: string): PipelineLayout {
         if (this.mergeHighFrequency) {
             assert(phaseID !== INVALID_ID);
-            const layout = this.layoutGraph.getRenderPhase(phaseID);
+            const layout = this.layoutGraph.j<RenderPhaseData>(phaseID);
             return layout.pipelineLayout!;
         }
         const lg = this.layoutGraph;
-        const phase = lg.getRenderPhase(phaseID);
+        const phase = lg.j<RenderPhaseData>(phaseID);
         const programID = phase.shaderIndex.get(programName);
         if (programID === undefined) {
             return getEmptyPipelineLayout();

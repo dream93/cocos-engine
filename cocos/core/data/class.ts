@@ -521,7 +521,6 @@ function parseAttributes (constructor: Function, attributes: PropertyStash, clas
         }
         parseSimpleAttribute('slide', 'boolean');
         parseSimpleAttribute('unit', 'string');
-        parseSimpleAttribute('userData', 'object');
         parseSimpleAttribute('radioGroup', 'boolean');
     }
 
@@ -591,9 +590,22 @@ function parseAttributes (constructor: Function, attributes: PropertyStash, clas
             error(ERR_Type, 'range', className, propertyName, 'array');
         }
     }
-    parseSimpleAttribute('min', 'number');
-    parseSimpleAttribute('max', 'number');
+    if (DEV) {
+        const parseReturnNumberFuncAttribute = (attributeName: keyof IAcceptableAttributes) => {
+            const value = attributes[attributeName];
+            if (value === undefined) { return; }
+
+            if (typeof value === 'number' || typeof value === 'function') {
+                (attrs || initAttrs())[`${propertyNamePrefix}${attributeName}`] = value;
+            } else {
+                error(ERR_Type, attributeName, className, propertyName, 'number | function');
+            }
+        };
+        parseReturnNumberFuncAttribute('min');
+        parseReturnNumberFuncAttribute('max');
+    }
     parseSimpleAttribute('step', 'number');
+    parseSimpleAttribute('userData', 'object');
 }
 
 CCClass.isArray = function (defaultVal): boolean {

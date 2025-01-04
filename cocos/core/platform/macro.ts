@@ -27,7 +27,7 @@
 
 import { EDITOR, MINIGAME, NATIVE, PREVIEW, RUNTIME_BASED } from 'internal:constants';
 import { legacyCC } from '../global-exports';
-import { Settings, settings } from '../settings';
+import { settings, SettingsCategory } from '../settings';
 import { Orientation } from '../../../pal/screen-adapter/enum-type';
 
 const SUPPORT_TEXTURE_FORMATS = ['.astc', '.pkm', '.pvr', '.webp', '.jpg', '.jpeg', '.bmp', '.png'];
@@ -1126,12 +1126,12 @@ const macro: Macro = {
     MAX_LABEL_CANVAS_POOL_SIZE: 20,
     ENABLE_WEBGL_HIGHP_STRUCT_VALUES: false,
     BATCHER2D_MEM_INCREMENT: 144,
-    CUSTOM_PIPELINE_NAME: '',
+    CUSTOM_PIPELINE_NAME: 'Builtin',
     init () {
         if (NATIVE || MINIGAME || RUNTIME_BASED) {
             this.CLEANUP_IMAGE_CACHE = true;
         }
-        const defaultValues = settings.querySettings(Settings.Category.ENGINE, 'macros');
+        const defaultValues = settings.querySettings(SettingsCategory.ENGINE, 'macros');
         if (defaultValues) {
             for (const key in defaultValues) {
                 macro[key] = defaultValues[key];

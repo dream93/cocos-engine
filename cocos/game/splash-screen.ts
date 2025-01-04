@@ -22,18 +22,22 @@
  THE SOFTWARE.
 */
 
-import { EDITOR, TAOBAO } from 'internal:constants';
+import { EDITOR, WECHAT } from 'internal:constants';
 import { Material } from '../asset/assets/material';
-import { clamp01, Mat4, Vec2, Settings, settings, sys, cclegacy, easing, preTransforms } from '../core';
+import { clamp01, Mat4, Vec2, settings, sys, cclegacy, easing, preTransforms, SettingsCategory } from '../core';
 import {
     Sampler, SamplerInfo, Shader, Texture, TextureInfo, Device, InputAssembler, InputAssemblerInfo, Attribute, Buffer,
     BufferInfo, Rect, Color, BufferTextureCopy, CommandBuffer, BufferUsageBit, Format,
     MemoryUsageBit, TextureType, TextureUsageBit, Address, Swapchain, Framebuffer,
+    DescriptorSetInfo,
+    DescriptorSet,
 } from '../gfx';
 import { PipelineStateManager } from '../rendering';
 import { SetIndex } from '../rendering/define';
 import { ccwindow, legacyCC } from '../core/global-exports';
 import { XREye } from '../xr/xr-enums';
+import { PipelineRuntime } from '../rendering/custom';
+import { ResolutionPolicy } from '../ui/view';
 
 const v2_0 = new Vec2();
 type SplashLogoType = 'default' | 'none' | 'custom';
@@ -41,6 +45,7 @@ type SplashBackgroundType = 'default' | 'color' | 'custom';
 type WatermarkLocationType = 'default' | 'topLeft' | 'topRight' | 'topCenter' | 'bottomLeft' | 'bottomCenter' | 'bottomRight';
 
 interface ISplashSetting {
+    policy?: number;
     displayRatio: number;
     totalTime: number;
     watermarkLocation: WatermarkLocationType;
@@ -93,7 +98,6 @@ export class SplashScreen {
     // layout
     private bgWidth = 1920;
     private bgHeight = 1080;
-    private bgRatio = 16 / 9;
     private logoWidthTemp = 140;
     private logoHeightTemp = 200;
     private logoWidth = 0;
@@ -122,13 +126,21 @@ export class SplashScreen {
     }
 
     public init (): Promise<void[]> {
+        let policy: number = ResolutionPolicy.SHOW_ALL;
+        if (!EDITOR) {
+            const designResolution = settings.querySettings(SettingsCategory.SCREEN, 'designResolution');
+            if (designResolution !== null) {
+                policy = designResolution.policy as number;
+            }
+        }
         this.settings = {
-            displayRatio: settings.querySettings<number>(Settings.Category.SPLASH_SCREEN, 'displayRatio') ?? 0.4,
-            totalTime: settings.querySettings<number>(Settings.Category.SPLASH_SCREEN, 'totalTime') ?? 3000,
-            watermarkLocation: settings.querySettings<WatermarkLocationType>(Settings.Category.SPLASH_SCREEN, 'watermarkLocation') ?? 'default',
-            autoFit: settings.querySettings<boolean>(Settings.Category.SPLASH_SCREEN, 'autoFit') ?? true,
-            logo: settings.querySettings<SplashLogo>(Settings.Category.SPLASH_SCREEN, 'logo') ?? undefined,
-            background: settings.querySettings<SplashBackground>(Settings.Category.SPLASH_SCREEN, 'background') ?? undefined,
+            policy: (policy) ?? ResolutionPolicy.SHOW_ALL,
+            displayRatio: settings.querySettings<number>(SettingsCategory.SPLASH_SCREEN, 'displayRatio') ?? 0.4,
+            totalTime: settings.querySettings<number>(SettingsCategory.SPLASH_SCREEN, 'totalTime') ?? 3000,
+            watermarkLocation: settings.querySettings<WatermarkLocationType>(SettingsCategory.SPLASH_SCREEN, 'watermarkLocation') ?? 'default',
+            autoFit: settings.querySettings<boolean>(SettingsCategory.SPLASH_SCREEN, 'autoFit') ?? true,
+            logo: settings.querySettings<SplashLogo>(SettingsCategory.SPLASH_SCREEN, 'logo') ?? undefined,
+            background: settings.querySettings<SplashBackground>(SettingsCategory.SPLASH_SCREEN, 'background') ?? undefined,
         };
         this._curTime = 0;
 
@@ -304,12 +316,31 @@ export class SplashScreen {
         let scaleY = 1;
         // update bg uniform
         if (this.settings.background!.type === 'custom') {
-            if (dw < dh) {
-                scaleX = dh * this.bgRatio;
+            if (this.settings.policy === ResolutionPolicy.FIXED_WIDTH) {
+                scaleX = dw;
+                scaleY = (dw / this.bgImage.width) * this.bgImage.height;
+            } else if (this.settings.policy === ResolutionPolicy.FIXED_HEIGHT) {
+                scaleX = (dh / this.bgImage.height) * this.bgImage.width;
                 scaleY = dh;
+            } else if (this.settings.policy === ResolutionPolicy.SHOW_ALL) {
+                if ((this.bgImage.width / this.bgHeight) > (dw / dh)) {
+                    scaleX = dw;
+                    scaleY = (dw / this.bgImage.width) * this.bgImage.height;
+                } else {
+                    scaleX = (dh / this.bgImage.height) * this.bgImage.width;
+                    scaleY = dh;
+                }
+            } else if (this.settings.policy === ResolutionPolicy.NO_BORDER) {
+                if ((this.bgImage.width / this.bgImage.height) > (dw / dh)) {
+                    scaleX = (dh / this.bgImage.height) * this.bgImage.width;
+                    scaleY = dh;
+                } else {
+                    scaleX = dw;
+                    scaleY = (dw / this.bgImage.width) * this.bgImage.height;
+                }
             } else {
                 scaleX = dw;
-                scaleY = dw * this.bgRatio;
+                scaleY = dh;
             }
 
             this.bgMat.setProperty('resolution', v2_0.set(dw, dh), 0);
@@ -322,9 +353,9 @@ export class SplashScreen {
         // update logo uniform
         const logoYTrans = dh * this.logoYTrans;
         if (this.settings.logo!.type !== 'none') {
-            scaleX = this.logoWidth * this.scaleSize * settings.displayRatio;
-            scaleY = this.logoHeight * this.scaleSize * settings.displayRatio;
-
+            // Product design is 0.185 of the height of the screen resolution as the display height of the logo.
+            scaleY = dh * 0.185 * settings.displayRatio;
+            scaleX = this.logoWidth * (dh * 0.185 / this.logoHeight) * settings.displayRatio;
             this.logoMat.setProperty('resolution', v2_0.set(dw, dh), 0);
             this.logoMat.setProperty('scale', v2_0.set(scaleX, scaleY), 0);
             this.logoMat.setProperty('translate', v2_0.set(dw * this.logoXTrans, logoYTrans), 0);
@@ -377,7 +408,6 @@ export class SplashScreen {
         const descriptorSet = pass.descriptorSet;
         descriptorSet.bindSampler(binding, this.sampler);
         descriptorSet.update();
-
         const region = new BufferTextureCopy();
         region.texExtent.width = this.bgImage.width;
         region.texExtent.height = this.bgImage.height;
@@ -412,7 +442,6 @@ export class SplashScreen {
         const descriptorSet = pass.descriptorSet;
         descriptorSet.bindSampler(binding, this.sampler);
         descriptorSet.update();
-
         const region = new BufferTextureCopy();
         region.texExtent.width = this.logoImage.width;
         region.texExtent.height = this.logoImage.height;
@@ -524,7 +553,7 @@ export class SplashScreen {
 
                 cmdBuff.begin();
                 cmdBuff.beginRenderPass(framebuffer.renderPass, framebuffer, renderArea, this.clearColors, 1.0, 0);
-
+                const pipeline = cclegacy.director.root.pipeline as PipelineRuntime;
                 if (this.settings.background!.type === 'custom') {
                     const bgPass = this.bgMat.passes[0];
                     const bgPso = PipelineStateManager.getOrCreatePipelineState(
@@ -536,6 +565,7 @@ export class SplashScreen {
                     );
 
                     cmdBuff.bindPipelineState(bgPso);
+                    cmdBuff.bindDescriptorSet(SetIndex.GLOBAL, pipeline.descriptorSet);
                     cmdBuff.bindDescriptorSet(SetIndex.MATERIAL, bgPass.descriptorSet);
                     cmdBuff.bindInputAssembler(this.quadAssmebler);
                     cmdBuff.draw(this.quadAssmebler);
@@ -552,6 +582,7 @@ export class SplashScreen {
                     );
 
                     cmdBuff.bindPipelineState(logoPso);
+                    cmdBuff.bindDescriptorSet(SetIndex.GLOBAL, pipeline.descriptorSet);
                     cmdBuff.bindDescriptorSet(SetIndex.MATERIAL, logoPass.descriptorSet);
                     cmdBuff.bindInputAssembler(this.quadAssmebler);
                     cmdBuff.draw(this.quadAssmebler);
@@ -568,6 +599,7 @@ export class SplashScreen {
                     );
 
                     cmdBuff.bindPipelineState(watermarkPso);
+                    cmdBuff.bindDescriptorSet(SetIndex.GLOBAL, pipeline.descriptorSet);
                     cmdBuff.bindDescriptorSet(SetIndex.MATERIAL, wartermarkPass.descriptorSet);
                     cmdBuff.bindInputAssembler(this.quadAssmebler);
                     cmdBuff.draw(this.quadAssmebler);
@@ -591,37 +623,64 @@ export class SplashScreen {
         this.device = null!;
         this.swapchain = null!;
         this.clearColors = null!;
-        if (this.settings.background!.type === 'custom') {
+
+        if (this.bgImage) {
             if ((this.bgImage as any).destroy) (this.bgImage as any).destroy();
             this.bgImage = null!;
+        }
+
+        if (this.bgMat) {
             this.bgMat.destroy();
             this.bgMat = null!;
+        }
+
+        if (this.bgTexture) {
             this.bgTexture.destroy();
             this.bgTexture = null!;
         }
-        if (this.settings.logo!.type !== 'none') {
+
+        if (this.logoImage) {
             if ((this.logoImage as any).destroy) (this.logoImage as any).destroy();
             this.logoImage = null!;
+        }
+
+        if (this.logoMat) {
             this.logoMat.destroy();
             this.logoMat = null!;
+        }
+
+        if (this.logoTexture) {
             this.logoTexture.destroy();
             this.logoTexture = null!;
         }
+
         this.renderArea = null!;
         this.cmdBuff = null!;
         this.shader = null!;
-        this.quadAssmebler.destroy();
-        this.quadAssmebler = null!;
-        this.vertexBuffers.destroy();
-        this.vertexBuffers = null!;
-        this.indicesBuffers.destroy();
-        this.indicesBuffers = null!;
+
+        if (this.quadAssmebler) {
+            this.quadAssmebler.destroy();
+            this.quadAssmebler = null!;
+        }
+
+        if (this.vertexBuffers) {
+            this.vertexBuffers.destroy();
+            this.vertexBuffers = null!;
+        }
+
+        if (this.indicesBuffers) {
+            this.indicesBuffers.destroy();
+            this.indicesBuffers = null!;
+        }
         this.sampler = null!;
 
         /** text */
-        if (this.settings.logo!.type === 'default' && this.watermarkTexture) {
+        if (this.watermarkMat) {
             this.watermarkMat.destroy();
             this.watermarkMat = null!;
+        }
+
+        if (this.watermarkTexture) {
             this.watermarkTexture.destroy();
             this.watermarkTexture = null!;
         }
@@ -629,14 +688,24 @@ export class SplashScreen {
         this.settings = null!;
     }
 
-    private static _ins?: SplashScreen;
+    private static _ins: SplashScreen | null = null;
 
-    public static get instance (): SplashScreen {
-        if (!SplashScreen._ins) {
-            SplashScreen._ins = new SplashScreen();
-        }
+    public static get instance (): SplashScreen | null {
         return SplashScreen._ins;
     }
+
+    public static createInstance (): SplashScreen {
+        SplashScreen._ins = new SplashScreen();
+        return SplashScreen._ins;
+    }
+
+    public static releaseInstance (): void {
+        if (SplashScreen._ins) {
+            SplashScreen._ins.destroy();
+            SplashScreen._ins = null;
+        }
+    }
+
     // eslint-disable-next-line no-empty-function
     private constructor () {}
 }

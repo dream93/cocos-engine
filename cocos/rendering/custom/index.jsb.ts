@@ -24,11 +24,10 @@
 
 declare const render: any;
 
+import zlib from '../../../external/compression/zlib.min';
 import { Pipeline, PipelineBuilder, RenderingModule } from './pipeline';
-import { DeferredPipelineBuilder } from './builtin-pipelines';
 import { Device } from '../../gfx';
-import { PostProcessBuilder } from '../post-process/post-process-builder';
-import { BuiltinForwardPipeline } from './builtin-forward-pipeline';
+import { forceResizeAllWindows } from './framework';
 
 export * from './types';
 export * from './pipeline';
@@ -39,6 +38,8 @@ let _pipeline: Pipeline | null = null;
 
 export const INVALID_ID = 0xFFFFFFFF;
 export const enableEffectImport = true;
+
+const LAYOUT_HEADER_SIZE = 8;
 
 let _renderModule: RenderingModule;
 
@@ -51,6 +52,7 @@ export const customPipelineBuilderMap = new Map<string, PipelineBuilder>();
 
 export function setCustomPipeline (name: string, builder: PipelineBuilder) {
     customPipelineBuilderMap.set(name, builder);
+    forceResizeAllWindows();
 }
 
 export function getCustomPipeline (name: string): PipelineBuilder {
@@ -61,17 +63,18 @@ export function getCustomPipeline (name: string): PipelineBuilder {
     return builder;
 }
 
-function addCustomBuiltinPipelines (map: Map<string, PipelineBuilder>) {
-    map.set('Forward', new BuiltinForwardPipeline());
-    map.set('Deferred', new DeferredPipelineBuilder());
-    map.set('Custom', new PostProcessBuilder());
-}
-
-addCustomBuiltinPipelines(customPipelineBuilderMap);
-
 export function init (device: Device, arrayBuffer: ArrayBuffer | null) {
-    if (arrayBuffer) {
-        _renderModule = render.Factory.init(device, arrayBuffer);
+    if (arrayBuffer && arrayBuffer.byteLength >= LAYOUT_HEADER_SIZE) {
+        const header = new DataView(arrayBuffer, 0, LAYOUT_HEADER_SIZE);
+        if (header.getUint32(0) === INVALID_ID) {
+            // Data is compressed
+            const inflator = new zlib.Inflate(new Uint8Array(arrayBuffer, LAYOUT_HEADER_SIZE));
+            const decompressed = inflator.decompress() as Uint8Array;
+            _renderModule = render.Factory.init(device, decompressed.buffer);
+        } else {
+            // Data is not compressed
+            _renderModule = render.Factory.init(device, arrayBuffer);
+        }
     } else {
         _renderModule = render.Factory.init(device, new ArrayBuffer(0));
     }

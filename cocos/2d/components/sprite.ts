@@ -26,14 +26,15 @@
 import { ccclass, help, executionOrder, menu, tooltip, displayOrder, type, range, editable, serializable, visible } from 'cc.decorator';
 import { BUILD, EDITOR } from 'internal:constants';
 import { SpriteAtlas } from '../assets/sprite-atlas';
-import { SpriteFrame } from '../assets/sprite-frame';
-import { Vec2, cclegacy, ccenum, clamp } from '../../core';
+import { SpriteFrame, SpriteFrameEvent } from '../assets/sprite-frame';
+import { Vec2, cclegacy, ccenum, clamp, warnID, error } from '../../core';
 import { IBatcher } from '../renderer/i-batcher';
 import { UIRenderer, InstanceMaterialType } from '../framework/ui-renderer';
 import { PixelFormat } from '../../asset/assets/asset-enum';
 import { TextureBase } from '../../asset/assets/texture-base';
 import { Material, RenderTexture } from '../../asset/assets';
 import { NodeEventType } from '../../scene-graph/node-event';
+import assetManager from '../../asset/asset-manager/asset-manager';
 
 /**
  * @en
@@ -151,7 +152,7 @@ enum SizeMode {
 }
 ccenum(SizeMode);
 
-enum EventType {
+export enum SpriteEventType {
     SPRITE_FRAME_CHANGED = 'spriteframe-changed',
 }
 
@@ -167,6 +168,10 @@ enum EventType {
 @executionOrder(110)
 @menu('2D/Sprite')
 export class Sprite extends UIRenderer {
+    constructor () {
+        super();
+    }
+
     /**
      * @en
      * The sprite atlas where the sprite is.
@@ -210,7 +215,7 @@ export class Sprite extends UIRenderer {
         this.markForUpdateRenderData();
         this._applySpriteFrame(lastSprite);
         if (EDITOR) {
-            this.node.emit(EventType.SPRITE_FRAME_CHANGED, this);
+            this.node.emit(SpriteEventType.SPRITE_FRAME_CHANGED, this);
         }
     }
 
@@ -454,7 +459,7 @@ export class Sprite extends UIRenderer {
      * @en Event types for sprite.
      * @zh sprite 的事件类型。
      */
-    public static EventType = EventType;
+    public static EventType = SpriteEventType;
 
     @serializable
     protected _spriteFrame: SpriteFrame | null = null;
@@ -483,6 +488,7 @@ export class Sprite extends UIRenderer {
 
         if (EDITOR) {
             this._resized();
+            this._applyAtlas(this._spriteFrame);
             this.node.on(NodeEventType.SIZE_CHANGED, this._resized, this);
         }
     }
@@ -496,7 +502,7 @@ export class Sprite extends UIRenderer {
         if (spriteFrame) {
             this._updateUVs();
             if (this._type === SpriteType.SLICED) {
-                spriteFrame.on(SpriteFrame.EVENT_UV_UPDATED, this._updateUVs, this);
+                spriteFrame.on(SpriteFrameEvent.UV_UPDATED, this._updateUVs, this);
             }
         }
     }
@@ -504,7 +510,7 @@ export class Sprite extends UIRenderer {
     public onDisable (): void {
         super.onDisable();
         if (this._spriteFrame && this._type === SpriteType.SLICED) {
-            this._spriteFrame.off(SpriteFrame.EVENT_UV_UPDATED, this._updateUVs, this);
+            this._spriteFrame.off(SpriteFrameEvent.UV_UPDATED, this._updateUVs, this);
         }
     }
 
@@ -526,7 +532,7 @@ export class Sprite extends UIRenderer {
      */
     public changeSpriteFrameFromAtlas (name: string): void {
         if (!this._atlas) {
-            console.warn('SpriteAtlas is null.');
+            warnID(16377);
             return;
         }
         const sprite = this._atlas.getSpriteFrame(name);
@@ -590,44 +596,49 @@ export class Sprite extends UIRenderer {
     }
 
     protected _flushAssembler (): void {
-        const assembler = Sprite.Assembler.getAssembler(this);
+        const self = this;
+        const assembler = Sprite.Assembler.getAssembler(self);
 
-        if (this._assembler !== assembler) {
-            this.destroyRenderData();
-            this._assembler = assembler;
+        if (self._assembler !== assembler) {
+            self.destroyRenderData();
+            self._assembler = assembler;
         }
 
-        if (!this._renderData) {
-            if (this._assembler && this._assembler.createData) {
-                this._renderData = this._assembler.createData(this);
-                this._renderData!.material = this.getRenderMaterial(0);
-                this.markForUpdateRenderData();
-                if (this.spriteFrame) {
-                    this._assembler.updateUVs(this);
+        if (!self._renderData) {
+            if (assembler && assembler.createData) {
+                const rd = self._renderData = assembler.createData(self);
+                rd.material = self.getRenderMaterial(0);
+                self.markForUpdateRenderData();
+                if (self.spriteFrame) {
+                    assembler.updateUVs(self);
                 }
-                this._updateColor();
+                self._updateColor();
             }
         }
 
         // Only Sliced type need update uv when sprite frame insets changed
-        if (this._spriteFrame) {
-            if (this._type === SpriteType.SLICED) {
-                this._spriteFrame.on(SpriteFrame.EVENT_UV_UPDATED, this._updateUVs, this);
+        const spriteFrame = self._spriteFrame;
+        if (spriteFrame) {
+            if (self._type === SpriteType.SLICED) {
+                spriteFrame.on(SpriteFrameEvent.UV_UPDATED, self._updateUVs, self);
             } else {
-                this._spriteFrame.off(SpriteFrame.EVENT_UV_UPDATED, this._updateUVs, this);
+                spriteFrame.off(SpriteFrameEvent.UV_UPDATED, self._updateUVs, self);
             }
         }
     }
 
     private _applySpriteSize (): void {
-        if (this._spriteFrame) {
-            if (BUILD || !this._spriteFrame.isDefault) {
-                if (SizeMode.RAW === this._sizeMode) {
-                    const size = this._spriteFrame.originalSize;
-                    this.node._uiProps.uiTransformComp!.setContentSize(size);
-                } else if (SizeMode.TRIMMED === this._sizeMode) {
-                    const rect = this._spriteFrame.rect;
-                    this.node._uiProps.uiTransformComp!.setContentSize(rect.width, rect.height);
+        const self = this;
+        const spriteFrame = self._spriteFrame;
+        if (spriteFrame) {
+            if (BUILD || !spriteFrame.isDefault) {
+                const uiProps = self.node._uiProps;
+                if (SizeMode.RAW === self._sizeMode) {
+                    const size = spriteFrame.originalSize;
+                    uiProps.uiTransformComp!.setContentSize(size);
+                } else if (SizeMode.TRIMMED === self._sizeMode) {
+                    const rect = spriteFrame.rect;
+                    uiProps.uiTransformComp!.setContentSize(rect.width, rect.height);
                 }
             }
         }
@@ -679,10 +690,11 @@ export class Sprite extends UIRenderer {
     }
 
     private _applySpriteFrame (oldFrame: SpriteFrame | null): void {
-        const spriteFrame = this._spriteFrame;
+        const self = this;
+        const spriteFrame = self._spriteFrame;
 
-        if (oldFrame && this._type === SpriteType.SLICED) {
-            oldFrame.off(SpriteFrame.EVENT_UV_UPDATED, this._updateUVs, this);
+        if (oldFrame && self._type === SpriteType.SLICED) {
+            oldFrame.off(SpriteFrameEvent.UV_UPDATED, self._updateUVs, self);
         }
 
         let textureChanged = false;
@@ -691,19 +703,45 @@ export class Sprite extends UIRenderer {
                 textureChanged = true;
             }
             if (textureChanged) {
-                if (this.renderData) this.renderData.textureDirty = true;
+                if (self.renderData) self.renderData.textureDirty = true;
                 // texture type changed, set this._instanceMaterialType to default value
                 const oldIsRT = oldFrame ? oldFrame.texture instanceof RenderTexture : false;
                 const newIsRT = spriteFrame.texture instanceof RenderTexture;
                 if (oldIsRT !== newIsRT) {
-                    this._instanceMaterialType = -1;
+                    self._instanceMaterialType = -1;
                 }
-                this.changeMaterialForDefine();
+                self.changeMaterialForDefine();
             }
-            this._applySpriteSize();
-            if (this._type === SpriteType.SLICED) {
-                spriteFrame.on(SpriteFrame.EVENT_UV_UPDATED, this._updateUVs, this);
+            self._applySpriteSize();
+            if (self._type === SpriteType.SLICED) {
+                spriteFrame.on(SpriteFrameEvent.UV_UPDATED, self._updateUVs, self);
             }
+        }
+
+        if (EDITOR) {
+            self._applyAtlas(spriteFrame);
+        }
+    }
+
+    private _applyAtlas (spriteFrame: SpriteFrame | null): void {
+        if (!EDITOR) return;
+
+        if (!spriteFrame) return;
+
+        if (spriteFrame.atlasUuid.length === 0) {
+            this.spriteAtlas = null;
+            return;
+        }
+
+        if (!this.spriteAtlas || this.spriteAtlas.uuid !== spriteFrame.atlasUuid) {
+            assetManager.loadAny(spriteFrame.atlasUuid, (err: Error, asset: SpriteAtlas) => {
+                if (err) {
+                    this.spriteAtlas = null;
+                    error(err);
+                } else {
+                    this.spriteAtlas = asset;
+                }
+            });
         }
     }
 }

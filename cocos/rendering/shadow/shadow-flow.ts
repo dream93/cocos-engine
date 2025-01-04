@@ -23,7 +23,7 @@
 */
 
 import { ccclass } from 'cc.decorator';
-import { PIPELINE_FLOW_SHADOW, supportsR32FloatTexture, UBOCamera, UBOCSM, UBOGlobal, UBOShadow } from '../define';
+import { PIPELINE_FLOW_SHADOW, supportsR32FloatTexture, UBOCameraEnum, UBOCSMEnum, UBOGlobalEnum, UBOShadowEnum } from '../define';
 import { IRenderFlowInfo, RenderFlow } from '../render-flow';
 import { ForwardFlowPriority } from '../enum';
 import { ShadowStage } from './shadow-stage';
@@ -33,7 +33,7 @@ import { RenderPass, LoadOp, StoreOp,
     Framebuffer, DescriptorSet, API } from '../../gfx';
 import { RenderFlowTag } from '../pipeline-serialization';
 import { ForwardPipeline } from '../forward/forward-pipeline';
-import { RenderPipeline } from '..';
+import { RenderPipeline } from '../render-pipeline';
 import { PCFType, ShadowType } from '../../render-scene/scene/shadows';
 import { Light, LightType } from '../../render-scene/scene/light';
 import { Camera } from '../../render-scene/scene';
@@ -58,7 +58,11 @@ export class ShadowFlow extends RenderFlow {
         stages: [],
     };
 
-    private _shadowRenderPass: RenderPass|null = null;
+    private _shadowRenderPass: RenderPass | null = null;
+
+    constructor () {
+        super();
+    }
 
     public initialize (info: IRenderFlowInfo): boolean {
         super.initialize(info);
@@ -84,7 +88,7 @@ export class ShadowFlow extends RenderFlow {
 
         // 0: UNIFORM_VECTORS_LESS_EQUAL_64, 1: UNIFORM_VECTORS_GREATER_EQUAL_125.
         pipeline.pipelineSceneData.csmSupported = pipeline.device.capabilities.maxFragmentUniformVectors
-            >= (UBOGlobal.COUNT + UBOCamera.COUNT + UBOShadow.COUNT + UBOCSM.COUNT) / 4;
+            >= (UBOGlobalEnum.COUNT + UBOCameraEnum.COUNT + UBOShadowEnum.COUNT + UBOCSMEnum.COUNT) / 4;
         pipeline.macros.CC_SUPPORT_CASCADED_SHADOW_MAP = pipeline.pipelineSceneData.csmSupported;
 
         // 0: CC_SHADOW_NONE, 1: CC_SHADOW_PLANAR, 2: CC_SHADOW_MAP

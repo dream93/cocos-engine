@@ -48,7 +48,7 @@ export type TweenEasing =
  * @zh
  * 缓动的可选属性的接口定义。
  */
-export interface ITweenOption<T> {
+export interface ITweenOption<T extends object = any> {
 
     /**
      * @en
@@ -57,14 +57,6 @@ export interface ITweenOption<T> {
      * 缓动函数，可以使用已有的，也可以传入自定义的函数。
      */
     easing?: TweenEasing | ((k: number) => number);
-
-    /**
-     * @en
-     * Whether to use relative value calculation method during easing process
-     * @zh
-     * 缓动过程中是否采用相对值计算的方法
-     */
-    relative?: boolean;
 
     /**
      * @en

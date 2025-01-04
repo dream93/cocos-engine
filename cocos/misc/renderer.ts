@@ -55,6 +55,10 @@ const { ccclass, serializable, disallowMultiple, type, displayOrder, displayName
 @ccclass('cc.Renderer')
 @disallowMultiple
 export class Renderer extends Component {
+    constructor () {
+        super();
+    }
+
     /**
      * @en Get the default shared material
      * @zh 获取默认的共享材质
@@ -172,6 +176,9 @@ export class Renderer extends Component {
         if (material && material instanceof MaterialInstance) {
             errorID(12012);
         }
+
+        if (this._materials[index] === material) return;
+
         this._materials[index] = material;
         const inst = this._materialInstances[index];
         if (inst) {

@@ -23,7 +23,7 @@
  THE SOFTWARE.
 */
 
-import { TEST, EDITOR } from 'internal:constants';
+import { TEST } from 'internal:constants';
 import { MeshRenderer } from '../3d/framework/mesh-renderer';
 import { createMesh } from '../3d/misc';
 import { Material } from '../asset/assets/material';
@@ -33,10 +33,9 @@ import { Node } from '../scene-graph/node';
 import { ICounterOption } from './counter';
 import { PerfCounter } from './perf-counter';
 import { Pass } from '../render-scene';
-import { preTransforms, System, sys, cclegacy, Settings, settings, warn } from '../core';
+import { preTransforms, System, sys, cclegacy, settings, warnID, SettingsCategory } from '../core';
 import { Root } from '../root';
-import { PipelineRuntime } from '../rendering/custom/pipeline';
-import { director } from '../game';
+import { director, DirectorEvent, game } from '../game';
 import { ccwindow } from '../core/global-exports';
 
 const _characters = '0123456789. ';
@@ -132,7 +131,7 @@ export class Profiler extends System {
     }
 
     init (): void {
-        const showFPS = !!settings.querySettings(Settings.Category.PROFILING, 'showFPS');
+        const showFPS = !!settings.querySettings(SettingsCategory.PROFILING, 'showFPS');
         if (showFPS) {
             this.showStats();
         } else {
@@ -144,7 +143,7 @@ export class Profiler extends System {
      * @deprecated We have removed this private interface in version 3.8, please use the public interface get stats instead.
      */
     public get _stats (): IProfilerState | null {
-        warn('Profiler._stats is deprecated, please use Profiler.stats instead.');
+        warnID(16381);
         return this._profilerStats;
     }
 
@@ -166,13 +165,13 @@ export class Profiler extends System {
                 this._rootNode.active = false;
             }
 
-            cclegacy.director.off(cclegacy.Director.EVENT_BEFORE_UPDATE, this.beforeUpdate, this);
-            cclegacy.director.off(cclegacy.Director.EVENT_AFTER_UPDATE, this.afterUpdate, this);
-            cclegacy.director.off(cclegacy.Director.EVENT_BEFORE_PHYSICS, this.beforePhysics, this);
-            cclegacy.director.off(cclegacy.Director.EVENT_AFTER_PHYSICS, this.afterPhysics, this);
-            cclegacy.director.off(cclegacy.Director.EVENT_BEFORE_DRAW, this.beforeDraw, this);
-            cclegacy.director.off(cclegacy.Director.EVENT_AFTER_RENDER, this.afterRender, this);
-            cclegacy.director.off(cclegacy.Director.EVENT_AFTER_DRAW, this.afterPresent, this);
+            director.off(DirectorEvent.BEFORE_UPDATE, this.beforeUpdate, this);
+            director.off(DirectorEvent.AFTER_UPDATE, this.afterUpdate, this);
+            director.off(DirectorEvent.BEFORE_PHYSICS, this.beforePhysics, this);
+            director.off(DirectorEvent.AFTER_PHYSICS, this.afterPhysics, this);
+            director.off(DirectorEvent.BEFORE_DRAW, this.beforeDraw, this);
+            director.off(DirectorEvent.AFTER_RENDER, this.afterRender, this);
+            director.off(DirectorEvent.AFTER_DRAW, this.afterPresent, this);
             this._showFPS = false;
             director.root!.pipeline.profiler = null;
             cclegacy.game.config.showFPS = false;
@@ -196,13 +195,13 @@ export class Profiler extends System {
                 this._rootNode.active = true;
             }
 
-            cclegacy.director.on(cclegacy.Director.EVENT_BEFORE_UPDATE, this.beforeUpdate, this);
-            cclegacy.director.on(cclegacy.Director.EVENT_AFTER_UPDATE, this.afterUpdate, this);
-            cclegacy.director.on(cclegacy.Director.EVENT_BEFORE_PHYSICS, this.beforePhysics, this);
-            cclegacy.director.on(cclegacy.Director.EVENT_AFTER_PHYSICS, this.afterPhysics, this);
-            cclegacy.director.on(cclegacy.Director.EVENT_BEFORE_DRAW, this.beforeDraw, this);
-            cclegacy.director.on(cclegacy.Director.EVENT_AFTER_RENDER, this.afterRender, this);
-            cclegacy.director.on(cclegacy.Director.EVENT_AFTER_DRAW, this.afterPresent, this);
+            director.on(DirectorEvent.BEFORE_UPDATE, this.beforeUpdate, this);
+            director.on(DirectorEvent.AFTER_UPDATE, this.afterUpdate, this);
+            director.on(DirectorEvent.BEFORE_PHYSICS, this.beforePhysics, this);
+            director.on(DirectorEvent.AFTER_PHYSICS, this.afterPhysics, this);
+            director.on(DirectorEvent.BEFORE_DRAW, this.beforeDraw, this);
+            director.on(DirectorEvent.AFTER_RENDER, this.afterRender, this);
+            director.on(DirectorEvent.AFTER_DRAW, this.afterPresent, this);
 
             this._showFPS = true;
             this._canvasDone = true;
@@ -254,7 +253,7 @@ export class Profiler extends System {
         this._ctx.textAlign = 'left';
         let i = 0;
         for (const id in _profileInfo) {
-            const element = _profileInfo[id];
+            const element = _profileInfo[id] as ICounterOption;
             this._ctx.fillText(element.desc, 0, i * this._lineHeight);
             element.counter = new PerfCounter(id, element, now);
             i++;
@@ -282,7 +281,7 @@ export class Profiler extends System {
 
         this._rootNode = new Node('PROFILER_NODE');
         this._rootNode._objFlags = cclegacy.Object.Flags.DontSave | cclegacy.Object.Flags.HideInHierarchy;
-        cclegacy.game.addPersistRootNode(this._rootNode);
+        game.addPersistRootNode(this._rootNode);
 
         const managerNode = new Node('Profiler_Root');
         managerNode.parent = this._rootNode;
@@ -368,7 +367,7 @@ export class Profiler extends System {
         }
 
         const now = performance.now();
-        if (cclegacy.director.isPaused()) {
+        if (director.isPaused()) {
             (this._profilerStats.frame.counter as PerfCounter).start(now);
         } else {
             (this._profilerStats.logic.counter as PerfCounter).end(now);

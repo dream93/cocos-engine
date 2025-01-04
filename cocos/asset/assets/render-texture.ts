@@ -61,6 +61,9 @@ const _windowInfo: IRenderWindowInfo = {
 @ccclass('cc.RenderTexture')
 export class RenderTexture extends TextureBase {
     private _window: RenderWindow | null = null;
+    constructor () {
+        super();
+    }
 
     /**
      * @en The render window for the render pipeline, it's created internally and cannot be modified.
@@ -175,6 +178,9 @@ export class RenderTexture extends TextureBase {
         _windowInfo.externalResLow = info && info.externalResLow ? info.externalResLow : 0;
         _windowInfo.externalResHigh = info && info.externalResHigh ? info.externalResHigh : 0;
         _windowInfo.externalFlag = info && info.externalFlag ? info.externalFlag : TextureFlagBit.NONE;
+        _windowInfo.renderPassInfo.colorAttachments.forEach((colorAttachment) => {
+            colorAttachment.format = root.device.swapchainFormat;
+        });
 
         _colorAttachment.barrier = deviceManager.gfxDevice.getGeneralBarrier(new GeneralBarrierInfo(
             AccessFlagBit.FRAGMENT_SHADER_READ_TEXTURE,
@@ -218,7 +224,9 @@ export class RenderTexture extends TextureBase {
      * @param height @en The pixel height. @zh 像素高度。
      * @param buffer @en The buffer to hold pixel data. @zh 像素缓存。
      */
-    public readPixels (x = 0, y = 0, width?: number, height?: number, buffer?: Uint8Array): Uint8Array | null {
+    public readPixels (x?: number, y?: number, width?: number, height?: number, buffer?: Uint8Array): Uint8Array | null {
+        x = x || 0;
+        y = y || 0;
         width = width || this.width;
         height = height || this.height;
         const gfxTexture = this.getGFXTexture();

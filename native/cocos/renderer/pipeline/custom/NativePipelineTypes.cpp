@@ -1,7 +1,7 @@
-/****************************************************************************
- Copyright (c) 2021-2023 Xiamen Yaji Software Co., Ltd.
+/*
+ Copyright (c) 2021-2024 Xiamen Yaji Software Co., Ltd.
 
- http://www.cocos.com
+ https://www.cocos.com
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,7 @@
  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  THE SOFTWARE.
-****************************************************************************/
+*/
 
 /**
  * ========================= !DO NOT CHANGE THE FOLLOWING SECTION MANUALLY! =========================
@@ -74,23 +74,14 @@ NativeRenderQueue::NativeRenderQueue(const allocator_type& alloc) noexcept
   opaqueInstancingQueue(alloc),
   transparentInstancingQueue(alloc) {}
 
-NativeRenderQueue::NativeRenderQueue(SceneFlags sceneFlagsIn, uint32_t subpassOrPassLayoutIDIn, const allocator_type& alloc) noexcept
-: opaqueQueue(alloc),
-  transparentQueue(alloc),
-  probeQueue(alloc),
-  opaqueInstancingQueue(alloc),
-  transparentInstancingQueue(alloc),
-  sceneFlags(sceneFlagsIn),
-  subpassOrPassLayoutID(subpassOrPassLayoutIDIn) {}
-
 NativeRenderQueue::NativeRenderQueue(NativeRenderQueue&& rhs, const allocator_type& alloc)
 : opaqueQueue(std::move(rhs.opaqueQueue), alloc),
   transparentQueue(std::move(rhs.transparentQueue), alloc),
   probeQueue(std::move(rhs.probeQueue), alloc),
   opaqueInstancingQueue(std::move(rhs.opaqueInstancingQueue), alloc),
   transparentInstancingQueue(std::move(rhs.transparentInstancingQueue), alloc),
+  camera(rhs.camera),
   sceneFlags(rhs.sceneFlags),
-  subpassOrPassLayoutID(rhs.subpassOrPassLayoutID),
   lightByteOffset(rhs.lightByteOffset) {}
 
 ResourceGroup::ResourceGroup(const allocator_type& alloc) noexcept
@@ -195,16 +186,18 @@ SceneCulling::SceneCulling(const allocator_type& alloc) noexcept
   frustumCullingResults(alloc),
   lightBoundsCullings(alloc),
   lightBoundsCullingResults(alloc),
+  renderQueueIndex(alloc),
   renderQueues(alloc),
-  renderQueueIndex(alloc) {}
+  renderQueueQueryIndex(alloc) {}
 
 SceneCulling::SceneCulling(SceneCulling&& rhs, const allocator_type& alloc)
 : frustumCullings(std::move(rhs.frustumCullings), alloc),
   frustumCullingResults(std::move(rhs.frustumCullingResults), alloc),
   lightBoundsCullings(std::move(rhs.lightBoundsCullings), alloc),
   lightBoundsCullingResults(std::move(rhs.lightBoundsCullingResults), alloc),
-  renderQueues(std::move(rhs.renderQueues), alloc),
   renderQueueIndex(std::move(rhs.renderQueueIndex), alloc),
+  renderQueues(std::move(rhs.renderQueues), alloc),
+  renderQueueQueryIndex(std::move(rhs.renderQueueQueryIndex), alloc),
   numFrustumCulling(rhs.numFrustumCulling),
   numLightBoundsCulling(rhs.numLightBoundsCulling),
   numRenderQueues(rhs.numRenderQueues),

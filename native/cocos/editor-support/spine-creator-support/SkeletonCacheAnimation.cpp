@@ -165,7 +165,6 @@ void SkeletonCacheAnimation::render(float /*dt*/) {
     if (segments.empty() || colors.empty()) return;
 
     auto *mgr = MiddlewareManager::getInstance();
-    if (!mgr->isRendering) return;
 
     _sharedBufferOffset->reset();
     _sharedBufferOffset->clear();
@@ -238,7 +237,7 @@ void SkeletonCacheAnimation::render(float /*dt*/) {
     }
 
     auto handleColor = [&](SkeletonCache::ColorData *colorData) {
-        tempA = colorData->finalColor.a * _nodeColor.a;
+        tempA = colorData->finalColor.a * _entity->getOpacity();
         multiplier = _premultipliedAlpha ? tempA / 255 : 1;
         tempR = _nodeColor.r * multiplier;
         tempG = _nodeColor.g * multiplier;
@@ -287,7 +286,7 @@ void SkeletonCacheAnimation::render(float /*dt*/) {
                 curBlendDst = static_cast<int>(BlendFactor::ONE_MINUS_SRC_ALPHA);
                 break;
             case BlendMode_Screen:
-                curBlendSrc = static_cast<int>(BlendFactor::ONE);
+                curBlendSrc = static_cast<int>(_premultipliedAlpha ? BlendFactor::ONE : BlendFactor::SRC_ALPHA);
                 curBlendDst = static_cast<int>(BlendFactor::ONE_MINUS_SRC_COLOR);
                 break;
             default:

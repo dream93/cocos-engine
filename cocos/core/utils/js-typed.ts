@@ -250,8 +250,7 @@ export function getClassName (objOrCtor: any): string {
         //  for browsers which have name property in the constructor of the object, such as chrome
         if (objOrCtor.name) {
             ret = objOrCtor.name;
-        }
-        if (objOrCtor.toString) {
+        } else if (objOrCtor.toString) {
             let arr;
             const str = objOrCtor.toString();
             if (str.charAt(0) === '[') {
@@ -261,7 +260,7 @@ export function getClassName (objOrCtor: any): string {
             } else {
                 // str is function objectClass () {} for IE Firefox
                 // eslint-disable-next-line @typescript-eslint/prefer-regexp-exec
-                arr = /function\s*(\w+)/.exec(str);
+                arr = /^function\s*(\w+)/.exec(str);
             }
             if (arr && arr.length === 2) {
                 ret = arr[1];
@@ -630,14 +629,14 @@ function setup (tag: string, table: Record<string | number, any>, allowExist: bo
         if (id) {
             const registered = table[id];
             if (!allowExist && registered && registered !== constructor) {
-                let err = `A Class already exists with the same ${tag} : "${id}".`;
+                let detail = '';
                 if (TEST) {
                     // eslint-disable-next-line no-multi-str
-                    err += ' (This may be caused by error of unit test.) \
+                    detail += ' (This may be caused by error of unit test.) \
 If you dont need serialization, you can set class id to "". You can also call \
 js.unregisterClass to remove the id of unused class';
                 }
-                error(err);
+                errorID(16334, tag, id, detail);
             } else {
                 table[id] = constructor;
             }
@@ -697,11 +696,11 @@ export function setClassAlias (target: Constructor, alias: string): void {
     const idRegistry = _idToClass[alias];
     let ok = true;
     if (nameRegistry && nameRegistry !== target) {
-        error(`"${alias}" has already been set as name or alias of another class.`);
+        errorID(16335, alias);
         ok = false;
     }
     if (idRegistry && idRegistry !== target) {
-        error(`"${alias}" has already been set as id or alias of another class.`);
+        errorID(16336, alias);
         ok = false;
     }
     if (ok) {

@@ -31,18 +31,18 @@ import { InputEventType } from '../../input/types/event-enum';
 import { EventDispatcherPriority, IEventDispatcher } from '../../input/input';
 
 const mouseEvents = [
-    Input.EventType.MOUSE_DOWN,
-    Input.EventType.MOUSE_MOVE,
-    Input.EventType.MOUSE_UP,
-    Input.EventType.MOUSE_WHEEL,
-    Input.EventType.MOUSE_LEAVE,
-    Input.EventType.MOUSE_ENTER,
+    InputEventType.MOUSE_DOWN,
+    InputEventType.MOUSE_MOVE,
+    InputEventType.MOUSE_UP,
+    InputEventType.MOUSE_WHEEL,
+    InputEventType.MOUSE_LEAVE,
+    InputEventType.MOUSE_ENTER,
 ];
 const touchEvents = [
-    Input.EventType.TOUCH_START,
-    Input.EventType.TOUCH_MOVE,
-    Input.EventType.TOUCH_END,
-    Input.EventType.TOUCH_CANCEL,
+    InputEventType.TOUCH_START,
+    InputEventType.TOUCH_MOVE,
+    InputEventType.TOUCH_END,
+    InputEventType.TOUCH_CANCEL,
 ];
 
 class PointerEventDispatcher implements IEventDispatcher {
@@ -56,10 +56,14 @@ class PointerEventDispatcher implements IEventDispatcher {
 
     constructor () {
         input._registerEventDispatcher(this);
+        const callbacksInvoker = NodeEventProcessor.callbacksInvoker;
+        callbacksInvoker.on(DispatcherEventType.ADD_POINTER_EVENT_PROCESSOR, this.addPointerEventProcessor, this);
+        callbacksInvoker.on(DispatcherEventType.REMOVE_POINTER_EVENT_PROCESSOR, this.removePointerEventProcessor, this);
+        callbacksInvoker.on(DispatcherEventType.MARK_LIST_DIRTY, this._markListDirty, this);
+    }
 
-        NodeEventProcessor.callbacksInvoker.on(DispatcherEventType.ADD_POINTER_EVENT_PROCESSOR, this.addPointerEventProcessor, this);
-        NodeEventProcessor.callbacksInvoker.on(DispatcherEventType.REMOVE_POINTER_EVENT_PROCESSOR, this.removePointerEventProcessor, this);
-        NodeEventProcessor.callbacksInvoker.on(DispatcherEventType.MARK_LIST_DIRTY, this._markListDirty, this);
+    onThrowException (): void {
+        this._inDispatchCount = 0;
     }
 
     public dispatchEvent (event: Event): boolean {
@@ -128,7 +132,7 @@ class PointerEventDispatcher implements IEventDispatcher {
         for (let i = 0; i < length; ++i) {
             const pointerEventProcessor = pointerEventProcessorList[i];
             if (pointerEventProcessor.isEnabled && pointerEventProcessor.shouldHandleEventTouch) {
-                if (eventTouch.type === InputEventType.TOUCH_START) {
+                if (eventTouch.type === InputEventType.TOUCH_START as string) {
                     if (pointerEventProcessor._handleEventTouch(eventTouch)) {
                         // pointerEventProcessor may be disabled in handling touch event above.
                         if (pointerEventProcessor.isEnabled) {
@@ -151,10 +155,12 @@ class PointerEventDispatcher implements IEventDispatcher {
                     const index = pointerEventProcessor.claimedTouchIdList.indexOf(touch.getID());
                     if (index !== -1) {
                         pointerEventProcessor._handleEventTouch(eventTouch);
-                        if (eventTouch.type === InputEventType.TOUCH_END || eventTouch.type === InputEventType.TOUCH_CANCEL) {
+                        if (eventTouch.type === (InputEventType.TOUCH_END as string) || eventTouch.type === (InputEventType.TOUCH_CANCEL as string)) {
                             js.array.removeAt(pointerEventProcessor.claimedTouchIdList, index);
-                            // The event is handled, so should remove other EventProcessor's claimedTouchIdList.
-                            this._removeClaimedTouch(i + 1, index);
+                            // The event is handled, and the event can be swallowed, so should remove other EventProcessor's claimedTouchIdList.
+                            if (!eventTouch.preventSwallow) {
+                                this._removeClaimedTouch(i + 1, touch.getID());
+                            }
                         }
                         dispatchToNextEventDispatcher = false;
                         if (!eventTouch.preventSwallow) {
@@ -245,8 +251,8 @@ class PointerEventDispatcher implements IEventDispatcher {
             }
         }
 
-        const priority1 = n1 ? n1.getSiblingIndex() : 0;
-        const priority2 = n2 ? n2.getSiblingIndex() : 0;
+        const priority1 = n1 ? n1.siblingIndex : 0;
+        const priority2 = n2 ? n2.siblingIndex : 0;
 
         return ex ? priority1 - priority2 : priority2 - priority1;
     }

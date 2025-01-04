@@ -23,11 +23,10 @@
  THE SOFTWARE.
 */
 
-import { EDITOR } from 'internal:constants';
 import { MeshRenderer } from '../framework/mesh-renderer';
 import { ReflectionProbeType } from './reflection-probe-enum';
 import { ImageAsset, Texture2D } from '../../asset/assets';
-import { PixelFormat } from '../../asset/assets/asset-enum';
+import { TextureFilter, PixelFormat, WrapMode } from '../../asset/assets/asset-enum';
 import { Vec3, geometry, cclegacy } from '../../core';
 import { AABB } from '../../core/geometry';
 import { Texture } from '../../gfx';
@@ -75,7 +74,7 @@ export class ReflectionProbeManager {
      */
     public registerEvent (): void {
         if (!this._registeredEvent) {
-            cclegacy.director.on(cclegacy.Director.EVENT_BEFORE_UPDATE, this.onUpdateProbes, this);
+            cclegacy.director.on(cclegacy.DirectorEvent.BEFORE_UPDATE, this.onUpdateProbes, this);
             this._registeredEvent = true;
         }
     }
@@ -429,9 +428,9 @@ export class ReflectionProbeManager {
         });
 
         this._dataTexture = new Texture2D();
-        this._dataTexture.setFilters(Texture2D.Filter.NONE, Texture2D.Filter.NONE);
-        this._dataTexture.setMipFilter(Texture2D.Filter.NONE);
-        this._dataTexture.setWrapMode(Texture2D.WrapMode.CLAMP_TO_EDGE, Texture2D.WrapMode.CLAMP_TO_EDGE, Texture2D.WrapMode.CLAMP_TO_EDGE);
+        this._dataTexture.setFilters(TextureFilter.NONE, TextureFilter.NONE);
+        this._dataTexture.setMipFilter(TextureFilter.NONE);
+        this._dataTexture.setWrapMode(WrapMode.CLAMP_TO_EDGE, WrapMode.CLAMP_TO_EDGE, WrapMode.CLAMP_TO_EDGE);
         this._dataTexture.image = image;
 
         this._dataTexture.uploadData(updateView);

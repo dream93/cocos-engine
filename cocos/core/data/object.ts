@@ -172,8 +172,8 @@ class CCObject implements EditorExtendableObject {
                 obj._destroyImmediate();
             }
         }
-        // if we called b.destory() in a.onDestroy(), objectsToDestroy will be resized,
-        // but we only destroy the objects which called destory in this frame.
+        // if we called b.destroy() in a.onDestroy(), objectsToDestroy will be resized,
+        // but we only destroy the objects which called destroy in this frame.
         if (deleteCount === objectsToDestroy.length) {
             objectsToDestroy.length = 0;
         } else {
@@ -193,8 +193,8 @@ class CCObject implements EditorExtendableObject {
     /**
      * @internal
      */
-    public _objFlags: number;
-    protected _name: string;
+    public _objFlags: number = 0;
+    protected declare _name: string;
 
     constructor (name = '') {
         /**
@@ -202,12 +202,6 @@ class CCObject implements EditorExtendableObject {
          * @private
          */
         this._name = name;
-
-        /**
-         * @default 0
-         * @private
-         */
-        this._objFlags = 0;
 
         if (EDITOR) {
             // See cocos/cocos-engine#15392

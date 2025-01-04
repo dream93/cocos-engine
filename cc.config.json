@@ -19,6 +19,11 @@
         "gfx-empty": {
             "modules": ["gfx-empty"]
         },
+        "gfx-webgpu": {
+            "modules": [
+                "gfx-webgpu"
+            ]
+        },
         "3d": {
             "modules": ["3d"],
             "dependentAssets": [
@@ -81,7 +86,7 @@
             "dependentAssets": ["ba21476f-2866-4f81-9c4d-6e359316e448"]
         },
         "physics-ammo": {
-            "modules": ["physics-ammo", "physics-framework", "wait-for-ammo-instantiation"],
+            "modules": ["physics-ammo", "physics-framework"],
             "dependentAssets": ["ba21476f-2866-4f81-9c4d-6e359316e448"]
         },
         "physics-builtin": {
@@ -154,6 +159,9 @@
             "modules": ["tiled-map"],
             "dependentModules": ["2d"]
         },
+        "vendor-google": {
+            "modules": ["vendor-google"]
+        },
         "spine": {
             "modules": ["spine"],
             "dependentAssets": [
@@ -185,6 +193,20 @@
         "custom-pipeline": {
             "modules": ["custom-pipeline"],
             "dependentAssets": [
+                "6a2d0734-bd9e-4ddf-946e-caa52498cb75"
+            ]
+        },
+        "custom-pipeline-builtin-scripts": {
+            "modules": [],
+            "dependentScripts": [
+                "ff9b0199-ce04-4cfe-86cc-6c719f08d6e4",
+                "de1c2107-70c8-4021-8459-6399f24d01c6",
+                "cbf30902-517f-40dc-af90-a550bac27cf1"
+            ]
+        },
+        "custom-pipeline-post-process": {
+            "modules": ["custom-pipeline-post-process"],
+            "dependentAssets":[ 
                 "15049ccd-4dd7-451e-a8ae-af66735c929e",
                 "521c5f6e-1a26-42e2-8108-4400c912d9bf",
                 "4c3ce6de-e6d1-47f7-aa36-36b9b58f72d3",
@@ -200,6 +222,13 @@
                 "84ac6f69-3086-455a-86a4-561da8ee710b",
                 "5c601d96-e4c7-4698-991b-7ee674b11079",
                 "bf0a6d94-58f0-4ad2-bdf2-c4a31c7dd856"
+            ],
+            "dependentModules": ["custom-pipeline"]
+        },
+        "legacy-pipeline": {
+            "modules": ["legacy-pipeline"],
+            "dependentScripts": [
+                "b2bd1fa7-8d7c-49c5-a158-df29a6d3a594"
             ]
         },
         "websocket": {
@@ -242,6 +271,7 @@
                 "cocos/rendering/render-stage.ts": "cocos/rendering/render-stage.jsb.ts",
                 "cocos/rendering/geometry-renderer.ts": "cocos/rendering/geometry-renderer.jsb.ts",
                 "cocos/rendering/custom/index.ts": "cocos/rendering/custom/index.jsb.ts",
+                "cocos/rendering/legacy/index.ts": "cocos/rendering/legacy/index.jsb.ts",
                 "cocos/render-scene/core/native-pools.ts": "cocos/render-scene/core/native-pools.jsb.ts",
                 "cocos/render-scene/core/material-instance.ts": "cocos/render-scene/core/material-instance.jsb.ts",
                 "cocos/render-scene/core/pass.ts": "cocos/render-scene/core/pass.jsb.ts",
@@ -287,13 +317,6 @@
                 "cocos/3d/misc/create-mesh.ts": "cocos/3d/misc/create-mesh.jsb.ts",
                 "cocos/gi/light-probe/light-probe.ts": "cocos/gi/light-probe/light-probe.jsb.ts",
                 "cocos/gi/light-probe/delaunay.ts": "cocos/gi/light-probe/delaunay.jsb.ts"
-            }
-        },
-        {
-            "test": "context.buildTimeConstants && context.buildTimeConstants.WEBGPU",
-            "isVirtualModule": false,
-            "overrides": {
-                "cocos/gfx/index.ts": "cocos/gfx/index.ems.ts"
             }
         },
         {
@@ -458,13 +481,6 @@
             "value": false,
             "internal": false
         },
-        "BAIDU": {
-            "comment": "Running in the baidu's mini game.",
-            "type": "boolean",
-            "value": false,
-            "ccGlobal": true,
-            "internal": false
-        },
         "XIAOMI": {
             "comment": "Running in the xiaomi's quick game.",
             "type": "boolean",
@@ -519,28 +535,13 @@
             "ccGlobal": true,
             "internal": false
         },
-        "COCOSPLAY": {
-            "comment": "Running in the cocosplay.",
+        "MIGU": {
+            "comment": "Running in the migu's quick game.",
             "type": "boolean",
             "value": false,
             "ccGlobal": true,
             "internal": false
         },
-        "QTT": {
-            "comment": "Running in the qtt's quick game.",
-            "type": "boolean",
-            "value": false,
-            "ccGlobal": true,
-            "internal": false
-        },
-        "LINKSURE": {
-            "comment": "Running in the linksure's quick game.",
-            "type": "boolean",
-            "value": false,
-            "ccGlobal": true,
-            "internal": false
-        },
-
         "EDITOR": {
             "comment": "Running in the editor.",
             "type": "boolean",
@@ -581,7 +582,6 @@
             "dynamic": true
         },
 
-
         "DEBUG": {
             "comment": "Running debug mode.",
             "type": "boolean",
@@ -589,14 +589,13 @@
             "ccGlobal": true,
             "internal": false
         },
+
         "SERVER_MODE": {
             "comment": "Running in the server mode.",
             "type": "boolean",
             "value": false,
             "internal": true
         },
-
-
         "DEV": {
             "comment": "Running in the editor or preview.",
             "type": "boolean",
@@ -608,14 +607,14 @@
         "MINIGAME": {
             "comment": "Running in mini game.",
             "type": "boolean",
-            "value": "$WECHAT || $WECHAT_MINI_PROGRAM || $BAIDU || $XIAOMI || $ALIPAY || $TAOBAO || $TAOBAO_MINIGAME || $BYTEDANCE",
+            "value": "$WECHAT || $WECHAT_MINI_PROGRAM || $XIAOMI || $ALIPAY || $TAOBAO || $TAOBAO_MINIGAME || $BYTEDANCE",
             "ccGlobal": true,
             "internal": false
         },
         "RUNTIME_BASED": {
             "comment": "Running in runtime based environment.",
             "type": "boolean",
-            "value": "$OPPO || $VIVO || $HUAWEI || $COCOSPLAY || $QTT || $LINKSURE",
+            "value": "$OPPO || $VIVO || $HUAWEI || $MIGU",
             "ccGlobal": true,
             "internal": false
         },
@@ -669,6 +668,30 @@
             "type": "boolean",
             "value": true,
             "internal": true
+        },
+        "LOAD_SPINE_MANUALLY": {
+            "comment": "An internal constant to indicate whether we need to load spine wasm/asmjs module manually.",
+            "type": "boolean",
+            "value": false,
+            "internal": true
+        },
+        "LOAD_BOX2D_MANUALLY": {
+            "comment": "An internal constant to indicate whether we need to load box2d wasm/asmjs module manually.",
+            "type": "boolean",
+            "value": false,
+            "internal": true
+        },
+        "LOAD_BULLET_MANUALLY": {
+            "comment": "An internal constant to indicate whether we need to load bullet wasm/asmjs module manually.",
+            "type": "boolean",
+            "value": false,
+            "internal": true
+        },
+        "LOAD_PHYSX_MANUALLY": {
+            "comment": "An internal constant to indicate whether we need to load physx wasm/asmjs module manually.",
+            "type": "boolean",
+            "value": false,
+            "internal": true
         }
     },
 
@@ -685,6 +708,13 @@
             "executeInEditMode", "menu", "playOnFocus", "inspector", "icon", "help", "editable", "visible",
             "readOnly", "displayName", "tooltip", "group", "range", "rangeMin", "rangeMax", "rangeStep", "slide",
             "displayOrder", "unit", "radian", "multiline", "disallowAnimation"
+        ]
+    },
+
+    "treeShake": {
+        "noSideEffectFiles": [
+            "cocos/serialization/instantiate-jit.ts",
+            "cocos/game/splash-screen.ts"
         ]
     }
 }

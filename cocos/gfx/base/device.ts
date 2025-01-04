@@ -78,6 +78,14 @@ export abstract class Device {
     }
 
     /**
+     * @en The current format of the swapchain being used.
+     * @zh 当前使用的swapchain的格式。
+     */
+    get swapchainFormat (): Format {
+        return this._swapchainFormat;
+    }
+
+    /**
      * @en Renderer description.
      * @zh 渲染器描述。
      */
@@ -141,27 +149,47 @@ export abstract class Device {
         return this._bindingMappingInfo;
     }
 
+    /** @mangle */
     protected _gfxAPI = API.UNKNOWN;
+    /** @mangle */
     protected _renderer = '';
+    /** @mangle */
     protected _vendor = '';
+    /** @mangle */
     protected _features = new Array<boolean>(Feature.COUNT);
+    /** @mangle */
     protected _formatFeatures = new Array<FormatFeature>(Format.COUNT);
+    /** @mangle */
     protected _queue: Queue | null = null;
+    /** @mangle */
     protected _cmdBuff: CommandBuffer | null = null;
+    /** @mangle */
     protected _numDrawCalls = 0;
+    /** @mangle */
     protected _numInstances = 0;
+    /** @mangle */
     protected _numTris = 0;
+    /** @mangle */
     protected _memoryStatus = new MemoryStatus();
+    /** @mangle */
     protected _caps = new DeviceCaps();
+    /** @mangle */
     protected _bindingMappingInfo: BindingMappingInfo = new BindingMappingInfo();
+    /** @mangle */
     protected _samplers = new Map<number, Sampler>();
+    /** @mangle */
     protected _generalBarrierss = new Map<number, GeneralBarrier>();
+    /** @mangle */
     protected _textureBarriers = new Map<number, TextureBarrier>();
+    /** @mangle */
     protected _bufferBarriers = new Map<number, BufferBarrier>();
+    /** @mangle */
+    protected _swapchainFormat = Format.RGBA8;
 
+    /** @mangle */
     public static canvas: HTMLCanvasElement; // Hack for WebGL device initialization process
 
-    public abstract initialize (info: Readonly<DeviceInfo>): boolean;
+    public abstract initialize (info: Readonly<DeviceInfo>): boolean | Promise<boolean>;
 
     public abstract destroy (): void;
 
@@ -358,7 +386,9 @@ export abstract class Device {
      * @zh 是否开启自动GFX内部barrier推导，web无影响。
      * @param format The GFX format to be queried.
      */
-    public enableAutoBarrier (en: boolean): void {}
+    public enableAutoBarrier (en: boolean): void {
+        // noop
+    }
 
     /**
      * @en Get maximum supported sample count.
@@ -372,6 +402,7 @@ export abstract class Device {
     }
 }
 
+/** @mangle */
 export class DefaultResource {
     private _texture2D: Texture | null = null;
     private _texture3D: Texture | null = null;
@@ -379,11 +410,12 @@ export class DefaultResource {
     private _texture2DArray: Texture | null = null;
 
     constructor (device: Device) {
+        const capabilities = device.capabilities;
         const bufferSize = 64;
         // create a new buffer and fill it with a white pixel
         const buffer = new Uint8Array(bufferSize);
         buffer.fill(255);
-        if (device.capabilities.maxTextureSize >= 2) {
+        if (capabilities.maxTextureSize >= 2) {
             this._texture2D = device.createTexture(new TextureInfo(
                 TextureType.TEX2D,
                 TextureUsageBit.STORAGE | TextureUsageBit.SAMPLED,
@@ -395,7 +427,7 @@ export class DefaultResource {
             const copyRegion = new BufferTextureCopy(0, 0, 0, new Offset(0, 0, 0), new Extent(2, 2, 1));
             device.copyBuffersToTexture([buffer], this._texture2D, [copyRegion]);
         }
-        if (device.capabilities.maxTextureSize >= 2) {
+        if (capabilities.maxTextureSize >= 2) {
             this._textureCube = device.createTexture(new TextureInfo(
                 TextureType.CUBE,
                 TextureUsageBit.STORAGE | TextureUsageBit.SAMPLED,
@@ -418,7 +450,7 @@ export class DefaultResource {
             copyRegion.texSubres.baseArrayLayer = 5;
             device.copyBuffersToTexture([buffer], this._textureCube, [copyRegion]);
         }
-        if (device.capabilities.max3DTextureSize >= 2) {
+        if (capabilities.max3DTextureSize >= 2) {
             this._texture3D = device.createTexture(new TextureInfo(
                 TextureType.TEX3D,
                 TextureUsageBit.STORAGE | TextureUsageBit.SAMPLED,
@@ -434,7 +466,7 @@ export class DefaultResource {
             const copyRegion = new BufferTextureCopy(0, 0, 0, new Offset(0, 0, 0), new Extent(2, 2, 2), new TextureSubresLayers(0, 0, 1));
             device.copyBuffersToTexture([buffer], this._texture3D, [copyRegion]);
         }
-        if (device.capabilities.maxArrayTextureLayers >= 2) {
+        if (capabilities.maxArrayTextureLayers >= 2) {
             this._texture2DArray = device.createTexture(new TextureInfo(
                 TextureType.TEX2D_ARRAY,
                 TextureUsageBit.STORAGE | TextureUsageBit.SAMPLED,
