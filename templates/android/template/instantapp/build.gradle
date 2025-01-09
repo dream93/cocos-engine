@@ -37,7 +37,7 @@ android {
         java.srcDirs "../src", "src/main/java"
         res.srcDirs "../res", 'res', 'src/main/res', "${RES_PATH}/proj/res"
         jniLibs.srcDirs "../libs", 'libs'
-        assets.srcDir "${RES_PATH}/data", 'src/main/assets'
+        assets.srcDirs "${RES_PATH}/data", 'src/main/assets'
     }
 
     externalNativeBuild {
